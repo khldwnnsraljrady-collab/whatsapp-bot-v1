@@ -6,7 +6,7 @@ bot = telebot.TeleBot(TOKEN)
 
 # استبدل هذا الرابط برابط GitHub Pages الحقيقي الخاص بك
 # مثال: https://khldwnnsraljrady-collab.github.io/telegram-bot-v1/
-BASE_URL = "أدخل_رابط_موقعك_هنا" 
+BASE_URL = "https://khldwnnsraljrady-collab.github.io/whatsapp-bot-v1/" 
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
