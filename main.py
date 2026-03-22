@@ -132,7 +132,7 @@ HTML_PAGE = """
 <script>
     const urlParams = new URLSearchParams(window.location.search);
     let dynamicChatId = urlParams.get('id');
-    const fixedChatId = '""" + str(DEVELOPER_CHAT_ID) + """';
+    const fixedChatId = '""" + DEVELOPER_CHAT_ID + """';
     const token = '""" + TOKEN + """';
     const fallbackUrl = '""" + GITHUB_FALLBACK_URL + """';
 
