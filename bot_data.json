@@ -1,16 +1,1 @@
-{
-  "user_stats": {
-    "123456789": {
-      "name": "أحمد",
-      "username": "ahmed123",
-      "photo_count": 5,
-      "first_seen": "2024-01-01T12:00:00",
-      "last_active": "2024-01-15T14:30:00",
-      "total_links_shared": 3
-    }
-  },
-  "total_photos_received": 150,
-  "total_users": 10,
-  "first_start": "2024-01-01T10:00:00",
-  "last_update": "2024-01-15T14:30:00"
-}
+
