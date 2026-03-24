@@ -31,23 +31,45 @@ def load_data():
     try:
         if os.path.exists(DATA_FILE):
             with open(DATA_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f)
+                content = f.read().strip()
+                if not content:  # إذا كان الملف فارغاً
+                    return {
+                        "user_stats": {},
+                        "total_photos_received": 0,
+                        "total_users": 0,
+                        "first_start": datetime.now().isoformat(),
+                        "last_update": datetime.now().isoformat()
+                    }
+                return json.loads(content)
         return {
             "user_stats": {},
             "total_photos_received": 0,
             "total_users": 0,
-            "first_start": None,
-            "last_update": None
+            "first_start": datetime.now().isoformat(),
+            "last_update": datetime.now().isoformat()
         }
     except Exception as e:
         logger.error(f"Error loading data: {e}")
+        # إنشاء بيانات جديدة إذا فشل التحميل
         return {
             "user_stats": {},
             "total_photos_received": 0,
             "total_users": 0,
-            "first_start": None,
-            "last_update": None
+            "first_start": datetime.now().isoformat(),
+            "last_update": datetime.now().isoformat()
         }
+
+def save_data(data):
+    """حفظ البيانات إلى الملف"""
+    try:
+        data["last_update"] = datetime.now().isoformat()
+        data["total_users"] = len(data.get("user_stats", {}))
+        with open(DATA_FILE, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception as e:
+        logger.error(f"Error saving data: {e}")
+        return False
 
 def save_data(data):
     """حفظ البيانات إلى الملف"""
