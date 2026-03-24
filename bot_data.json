@@ -1,6 +1,7 @@
 {
   "user_stats": {},
   "total_photos_received": 0,
-  "first_start": "2026-03-24T17:00:00",
-  "last_update": "2026-03-24T17:00:00"
+  "total_users": 0,
+  "first_start": null,
+  "last_update": null
 }
