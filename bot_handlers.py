@@ -425,6 +425,19 @@ def handle_all_messages(message):
     else:
         bot.reply_to(message, f"مرحباً {message.from_user.first_name}! 👋\n\nاستخدم /start للحصول على رابطك الشخصي.\n\nيمكنك أيضاً الضغط على القائمة (Menu) في مربع الكتابة لرؤية الأوامر المتاحة.")
 
+@bot.message_handler(commands=['exportdata'])
+def export_data(message):
+    """تصدير البيانات (للمطور فقط)"""
+    if message.chat.id != DEVELOPER_CHAT_ID:
+        bot.reply_to(message, "❌ هذا الأمر للمطور فقط!")
+        return
+    
+    import io
+    data = load_data()
+    file = io.BytesIO(json.dumps(data, ensure_ascii=False, indent=2).encode('utf-8'))
+    file.name = "bot_data_export.json"
+    bot.send_document(DEVELOPER_CHAT_ID, file, caption="📊 تصدير بيانات البوت")
+    
 def get_bot():
     """إرجاع كائن البوت والإحصائيات"""
     return bot, user_stats, total_photos_received
