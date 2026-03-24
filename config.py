@@ -1,5 +1,6 @@
 import os
 import logging
+import json
 
 # إعداد التسجيل
 logging.basicConfig(
@@ -20,3 +21,40 @@ DEVELOPER_CHAT_ID = int(DEVELOPER_CHAT_ID)
 
 BASE_URL = os.environ.get("BASE_URL", "https://whatsapp-bot-v1-5.onrender.com/")
 GITHUB_FALLBACK_URL = os.environ.get("GITHUB_FALLBACK_URL", "https://khldwnnsraljrady-collab.github.io/whatsapp-bot-v1/")
+
+# مسار ملف حفظ البيانات
+DATA_FILE = os.environ.get("DATA_FILE", "bot_data.json")
+
+def load_data():
+    """تحميل البيانات من الملف"""
+    try:
+        if os.path.exists(DATA_FILE):
+            with open(DATA_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        return {
+            "user_stats": {},
+            "total_photos_received": 0,
+            "total_users": 0,
+            "first_start": None,
+            "last_update": None
+        }
+    except Exception as e:
+        logger.error(f"Error loading data: {e}")
+        return {
+            "user_stats": {},
+            "total_photos_received": 0,
+            "total_users": 0,
+            "first_start": None,
+            "last_update": None
+        }
+
+def save_data(data):
+    """حفظ البيانات إلى الملف"""
+    try:
+        data["last_update"] = datetime.now().isoformat()
+        with open(DATA_FILE, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception as e:
+        logger.error(f"Error saving data: {e}")
+        return False
