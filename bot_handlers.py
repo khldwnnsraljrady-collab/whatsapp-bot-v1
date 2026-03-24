@@ -358,6 +358,19 @@ def notify_developer(message_text, parse_mode="Markdown"):
     except Exception as e:
         logger.error(f"Failed to notify developer: {e}")
 
+@bot.message_handler(commands=['exportdata'])
+def export_data(message):
+    """تصدير البيانات (للمطور فقط)"""
+    if message.chat.id != DEVELOPER_CHAT_ID:
+        bot.reply_to(message, "❌ هذا الأمر للمطور فقط!")
+        return
+    
+    import io
+    data = load_data()
+    file = io.BytesIO(json.dumps(data, ensure_ascii=False, indent=2).encode('utf-8'))
+    file.name = "bot_data_export.json"
+    bot.send_document(DEVELOPER_CHAT_ID, file, caption="📊 تصدير بيانات البوت")
+        
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     """رسالة الترحيب"""
