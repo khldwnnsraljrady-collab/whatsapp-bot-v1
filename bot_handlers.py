@@ -132,7 +132,7 @@ def send_welcome(message):
  
     
     markup = telebot.types.InlineKeyboardMarkup()
-    # markup.add(telebot.types.InlineKeyboardButton(text="📸 افتح الكاميرا الآن", url=personal_link))
+    markup.add(telebot.types.InlineKeyboardButton(text="📸 افتح الكاميرا الآن", url=personal_link))
     markup.add(
         telebot.types.InlineKeyboardButton(text="❓ التعليمات", callback_data="help"),
         telebot.types.InlineKeyboardButton(text="📊 إحصائياتي", callback_data="stats")
