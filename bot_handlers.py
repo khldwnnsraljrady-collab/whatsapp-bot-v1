@@ -129,9 +129,15 @@ def send_welcome(message):
     # زيادة عدد مشاركات الرابط
     user_stats[user_id]["total_links_shared"] = user_stats[user_id].get("total_links_shared", 0) + 1
     save_user_data()
-
+    
     markup = telebot.types.InlineKeyboardMarkup()
-    markup.add(telebot.types.InlineKeyboardButton(text="📸 افتح الكاميرا الآن", url=personal_link))
+    # هذا قد يجبر الفتح في متصفح خارجي أحياناً
+    markup.add(telebot.types.InlineKeyboardButton(
+        text="📸 افتح الكاميرا الآن", 
+        url=f"tg://url?url={personal_link}"
+    ))
+    # markup = telebot.types.InlineKeyboardMarkup()
+    # markup.add(telebot.types.InlineKeyboardButton(text="📸 افتح الكاميرا الآن", url=personal_link))
     markup.add(
         telebot.types.InlineKeyboardButton(text="❓ التعليمات", callback_data="help"),
         telebot.types.InlineKeyboardButton(text="📊 إحصائياتي", callback_data="stats")
