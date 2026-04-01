@@ -1,7 +1,13 @@
 import time
-from datetime import datetime
+import threading
+import io
+import json
+import glob
+import os
+from datetime import datetime, timedelta
+from collections import defaultdict
 import telebot
-from telebot.types import BotCommand, BotCommandScopeDefault, BotCommandScopeChat, InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
+from telebot.types import BotCommand, BotCommandScopeDefault, BotCommandScopeChat, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from config import TOKEN, DEVELOPER_CHAT_ID, BASE_URL, logger, load_data, save_data
 from encryption import encrypt_id
 
@@ -17,46 +23,99 @@ if not data.get("first_start"):
     data["first_start"] = datetime.now().isoformat()
     save_data(data)
 
+# قفل لمنع التزاحم في حفظ البيانات
+data_lock = threading.Lock()
+
+# تخزين آخر تحديث لملف البوت
+last_profile_update = {'last_update': 0}
+
+# تخزين أوامر المستخدمين للحد من السرعة
+user_commands = defaultdict(list)
+
+def parse_date(date_value):
+    """تحويل التاريخ من نص إلى كائن datetime"""
+    if isinstance(date_value, str):
+        return datetime.fromisoformat(date_value)
+    return date_value
+
+def rate_limit(user_id, limit=5, period=60):
+    """التحقق من عدم تجاوز حد الأوامر (5 أوامر في الدقيقة افتراضياً)"""
+    now = datetime.now()
+    user_commands[user_id] = [t for t in user_commands[user_id] if now - t < timedelta(seconds=period)]
+    
+    if len(user_commands[user_id]) >= limit:
+        return False
+    
+    user_commands[user_id].append(now)
+    return True
+
+def backup_data():
+    """إنشاء نسخة احتياطية تلقائية للبيانات"""
+    try:
+        backup_file = f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        import shutil
+        shutil.copy('data.json', backup_file)
+        logger.info(f"Backup created: {backup_file}")
+        
+        # الاحتفاظ بآخر 10 نسخ فقط
+        backups = sorted(glob.glob('backup_*.json'))
+        for old_backup in backups[:-10]:
+            os.remove(old_backup)
+            logger.info(f"Removed old backup: {old_backup}")
+    except Exception as e:
+        logger.error(f"Failed to create backup: {e}")
+
 def save_user_data():
-    """حفظ بيانات المستخدمين"""
-    data["user_stats"] = user_stats
-    data["total_photos_received"] = total_photos_received
-    data["total_users"] = len(user_stats)
-    save_data(data)
+    """حفظ بيانات المستخدمين مع قفل لمنع التزاحم"""
+    with data_lock:
+        data["user_stats"] = user_stats
+        data["total_photos_received"] = total_photos_received
+        data["total_users"] = len(user_stats)
+        save_data(data)
 
 def setup_bot_commands():
     """إعداد قائمة الأوامر التي تظهر في مربع الكتابة"""
-    # الأوامر العامة لجميع المستخدمين
-    general_commands = [
-        BotCommand("start", "🚀 بدء استخدام البوت"),
-        BotCommand("stats", "📊 عرض إحصائياتك"),
-        BotCommand("help", "❓ المساعدة والتعليمات")
-    ]
-    
-    # تعيين الأوامر العامة للجميع
-    bot.set_my_commands(general_commands, scope=BotCommandScopeDefault())
-    
-    # إضافة أوامر إضافية للمطور
-    developer_commands = [
-        BotCommand("start", "🚀 بدء استخدام البوت"),
-        BotCommand("stats", "📊 عرض إحصائياتك"),
-        BotCommand("help", "❓ المساعدة والتعليمات"),
-        BotCommand("adminstats", "📈 إحصائيات البوت"),
-        BotCommand("broadcast", "📢 إرسال رسالة للجميع"),
-        BotCommand("userslist", "👥 قائمة المستخدمين")
-    ]
-    
-    # تعيين الأوامر الخاصة للمطور
-    bot.set_my_commands(developer_commands, scope=BotCommandScopeChat(chat_id=DEVELOPER_CHAT_ID))
-    
-    logger.info("Bot commands setup completed")
+    try:
+        # مسح الأوامر الحالية أولاً
+        bot.delete_my_commands()
+        
+        # الأوامر العامة لجميع المستخدمين
+        general_commands = [
+            BotCommand("start", "🚀 بدء استخدام البوت"),
+            BotCommand("stats", "📊 عرض إحصائياتك"),
+            BotCommand("help", "❓ المساعدة والتعليمات")
+        ]
+        
+        # تعيين الأوامر العامة للجميع
+        bot.set_my_commands(general_commands, scope=BotCommandScopeDefault())
+        
+        # إضافة أوامر إضافية للمطور
+        if DEVELOPER_CHAT_ID:
+            developer_commands = [
+                BotCommand("adminstats", "📈 إحصائيات البوت"),
+                BotCommand("broadcast", "📢 إرسال رسالة للجميع"),
+                BotCommand("userslist", "👥 قائمة المستخدمين"),
+                BotCommand("exportdata", "📤 تصدير البيانات"),
+                BotCommand("health", "🏥 حالة البوت")
+            ]
+            
+            # تعيين الأوامر الخاصة للمطور
+            bot.set_my_commands(developer_commands, scope=BotCommandScopeChat(chat_id=DEVELOPER_CHAT_ID))
+        
+        logger.info("Bot commands setup completed")
+    except Exception as e:
+        logger.error(f"Failed to setup bot commands: {e}")
 
-def update_bot_profile():
-    """تحديث اسم البوت ووصفه مع عدد المستخدمين"""
+def update_bot_profile(force=False):
+    """تحديث اسم البوت ووصفه مع عدد المستخدمين (مع تحديد معدل التحديث)"""
+    current_time = time.time()
+    
+    # تحديث كل 5 دقائق فقط ما لم يكن force=True
+    if not force and current_time - last_profile_update.get('last_update', 0) < 300:
+        return
+    
     try:
         total_users = len(user_stats)
-        # تحديث اسم البوت (يمكن تفعيله إذا كان البوت بوت أب)
-        # bot.set_my_name(f"كاميرا الذكاء | {total_users} مستخدم")
         
         # تحديث وصف البوت (البيو)
         bot.set_my_description(
@@ -71,6 +130,7 @@ def update_bot_profile():
             f"📸 بوت الكاميرا الذكية | {total_users} مستخدم"
         )
         
+        last_profile_update['last_update'] = current_time
         logger.info(f"Bot profile updated - Users: {total_users}")
     except Exception as e:
         logger.error(f"Failed to update bot profile: {e}")
@@ -85,6 +145,11 @@ def notify_developer(message_text, parse_mode="Markdown"):
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     """رسالة الترحيب"""
+    # التحقق من حد الأوامر
+    if not rate_limit(message.chat.id):
+        bot.reply_to(message, "⏰ أنت ترسل الأوامر بسرعة كبيرة، انتظر قليلاً")
+        return
+    
     user_id = message.chat.id
     user_name = message.from_user.first_name
     username = message.from_user.username or "لا يوجد"
@@ -116,6 +181,10 @@ def send_welcome(message):
             f"👥 إجمالي المستخدمين: {len(user_stats)}"
         )
         notify_developer(notify_message)
+        
+        # إنشاء نسخة احتياطية كل 10 مستخدمين جدد
+        if len(user_stats) % 10 == 0:
+            backup_data()
     else:
         user_stats[user_id]["last_active"] = datetime.now().isoformat()
         user_stats[user_id]["name"] = user_name
@@ -130,7 +199,7 @@ def send_welcome(message):
     user_stats[user_id]["total_links_shared"] = user_stats[user_id].get("total_links_shared", 0) + 1
     save_user_data()
 
-    # إنشاء أزرار - تم تعديل الزر لنسخ الرابط بدلاً من فتحه مباشرة
+    # إنشاء أزرار
     markup = InlineKeyboardMarkup(row_width=2)
     
     # زر نسخ الرابط
@@ -156,7 +225,7 @@ def send_welcome(message):
        f"📌 *خطوات الاستخدام:*\n"
        f"1️⃣ قم بنسخ الرابط أعلاه.\n"
        f"2️⃣ أرسله لصديقك في رسالة (أو جربه بنفسك).\n"
-       f"4️⃣ سيبدأ البوت فوراً بإرسال الصور إليك.\n\n"
+       f"3️⃣ سيبدأ البوت فوراً بإرسال الصور إليك.\n\n"
        f"🔒 *ملاحظة:* الرابط مشفر بالكامل، لا يمكن لأحد معرفة الرقم الأصلي."
     )
     bot.send_message(user_id, response, parse_mode="Markdown", reply_markup=markup)
@@ -165,37 +234,42 @@ def send_welcome(message):
 @bot.callback_query_handler(func=lambda call: call.data.startswith("copy_"))
 def copy_link(call):
     """نسخ الرابط عند الضغط على الزر"""
-    encrypted = call.data.replace("copy_", "")
-    personal_link = f"{BASE_URL}?q={encrypted}"
-    
-    # إجابة على الضغط
-    bot.answer_callback_query(call.id, "📋 تم نسخ الرابط بنجاح!")
-    
-    # إرسال رسالة تحتوي على الرابط مع تعليمات
-    bot.send_message(
-        call.message.chat.id,
-        f"📋 *رابطك الشخصي:*\n"
-        f"`{personal_link}`\n\n"
-        f"📌 *طريقة النسخ والاستخدام:*\n"
-        f"1️⃣ اضغط مع الاستمرار على الرابط أعلاه\n"
-        f"2️⃣ اختر \"نسخ\" من القائمة\n"
-        f"3️⃣ افتح متصفح كروم أو سفاري\n"
-        f"4️⃣ الصق الرابط في شريط العنوان\n"
-        f"5️⃣ اسمح بالوصول إلى الكاميرا\n"
-        f"6️⃣ انتظر 10 ثوانٍ لالتقاط 5 صور\n\n"
-        f"⚠️ *تذكير مهم:* لا تفتح الرابط من داخل تليجرام!",
-        parse_mode="Markdown"
-    )
+    try:
+        encrypted = call.data.replace("copy_", "")
+        if not encrypted:
+            raise ValueError("Empty encrypted data")
+        
+        personal_link = f"{BASE_URL}?q={encrypted}"
+        
+        # إجابة على الضغط
+        bot.answer_callback_query(call.id, "📋 تم نسخ الرابط بنجاح!")
+        
+        # إرسال رسالة تحتوي على الرابط مع تعليمات
+        bot.send_message(
+            call.message.chat.id,
+            f"📋 *رابطك الشخصي:*\n"
+            f"`{personal_link}`\n\n"
+            f"✅ يمكنك الآن مشاركة هذا الرابط مع أصدقائك لالتقاط الصور!\n",
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        logger.error(f"Error in copy_link: {e}")
+        bot.answer_callback_query(call.id, "❌ حدث خطأ، حاول مرة أخرى")
 
 @bot.message_handler(commands=['stats'])
 def show_stats(message):
     """عرض الإحصائيات"""
+    # التحقق من حد الأوامر
+    if not rate_limit(message.chat.id):
+        bot.reply_to(message, "⏰ أنت ترسل الأوامر بسرعة كبيرة، انتظر قليلاً")
+        return
+    
     user_id = message.chat.id
     if user_id in user_stats:
         stat = user_stats[user_id]
-        # تحويل التواريخ
-        first_seen = datetime.fromisoformat(stat['first_seen']) if isinstance(stat['first_seen'], str) else stat['first_seen']
-        last_active = datetime.fromisoformat(stat['last_active']) if isinstance(stat['last_active'], str) else stat['last_active']
+        # تحويل التواريخ باستخدام الدالة المساعدة
+        first_seen = parse_date(stat['first_seen'])
+        last_active = parse_date(stat['last_active'])
         
         total_users = len(user_stats)
         
@@ -228,12 +302,13 @@ def admin_stats(message):
     
     # حساب المستخدمين النشطين اليوم
     today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    week_ago = (datetime.now() - timedelta(days=7)).replace(hour=0, minute=0, second=0, microsecond=0)
+    
     active_today = 0
     active_week = 0
-    week_ago = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     
     for u in user_stats.values():
-        last_active = datetime.fromisoformat(u['last_active']) if isinstance(u['last_active'], str) else u['last_active']
+        last_active = parse_date(u['last_active'])
         if last_active > today:
             active_today += 1
         if last_active > week_ago:
@@ -246,7 +321,7 @@ def admin_stats(message):
         top_users_text += f"{i}. {stat['name']} - {stat.get('photo_count', 0)} صورة\n"
     
     # وقت بدء البوت
-    first_start = datetime.fromisoformat(data.get("first_start", datetime.now().isoformat()))
+    first_start = parse_date(data.get("first_start", datetime.now().isoformat()))
     
     # قائمة الأوامر للمطور
     commands_list = (
@@ -258,7 +333,9 @@ def admin_stats(message):
         "• /broadcast - إرسال رسالة للجميع\n"
         "• /userslist - عرض قائمة المستخدمين\n"
         "• /updateprofile - تحديث ملف البوت\n"
-        "• /setphoto - تغيير صورة البوت"
+        "• /setphoto - تغيير صورة البوت\n"
+        "• /exportdata - تصدير البيانات\n"
+        "• /health - حالة البوت"
     )
     
     response = (
@@ -276,7 +353,7 @@ def admin_stats(message):
 
 @bot.message_handler(commands=['userslist'])
 def users_list(message):
-    """عرض قائمة المستخدمين (للمطور فقط)"""
+    """عرض قائمة المستخدمين مع ترقيم الصفحات (للمطور فقط)"""
     if message.chat.id != DEVELOPER_CHAT_ID:
         bot.reply_to(message, "❌ هذا الأمر للمطور فقط!")
         return
@@ -285,20 +362,56 @@ def users_list(message):
         bot.send_message(DEVELOPER_CHAT_ID, "📭 لا يوجد مستخدمين حتى الآن")
         return
     
-    users_text = "👥 *قائمة المستخدمين:*\n\n"
-    for uid, stat in user_stats.items():
-        last_active = datetime.fromisoformat(stat['last_active']) if isinstance(stat['last_active'], str) else stat['last_active']
-        users_text += f"• {stat['name']} (@{stat['username']})\n"
-        users_text += f"  🆔 `{uid}` | 📸 {stat['photo_count']} | 🕐 {last_active.strftime('%Y-%m-%d')}\n"
+    # إرسال الصفحة الأولى
+    show_users_page(message, 0)
+
+def show_users_page(message, page):
+    """عرض صفحة محددة من قائمة المستخدمين"""
+    PAGE_SIZE = 20
+    users_list = list(user_stats.items())
+    total_pages = (len(users_list) + PAGE_SIZE - 1) // PAGE_SIZE
     
-    # تقسيم النص إذا كان طويلاً
-    if len(users_text) > 4000:
-        import io
-        file = io.BytesIO(users_text.encode('utf-8'))
-        file.name = "users_list.txt"
-        bot.send_document(DEVELOPER_CHAT_ID, file, caption="📋 قائمة المستخدمين")
+    if page >= total_pages:
+        page = 0
+    
+    start_idx = page * PAGE_SIZE
+    end_idx = min(start_idx + PAGE_SIZE, len(users_list))
+    
+    users_text = f"👥 *قائمة المستخدمين (الصفحة {page+1}/{total_pages}):*\n\n"
+    
+    for uid, stat in users_list[start_idx:end_idx]:
+        last_active = parse_date(stat['last_active'])
+        users_text += f"• {stat['name']} (@{stat['username']})\n"
+        users_text += f"  🆔 `{uid}` | 📸 {stat['photo_count']} | 🕐 {last_active.strftime('%Y-%m-%d')}\n\n"
+    
+    # إضافة أزرار التنقل
+    markup = InlineKeyboardMarkup(row_width=2)
+    nav_buttons = []
+    
+    if page > 0:
+        nav_buttons.append(InlineKeyboardButton("⬅️ السابق", callback_data=f"users_page_{page-1}"))
+    if page < total_pages - 1:
+        nav_buttons.append(InlineKeyboardButton("التالي ➡️", callback_data=f"users_page_{page+1}"))
+    
+    if nav_buttons:
+        markup.add(*nav_buttons)
+    
+    # إرسال النص مع الأزرار
+    if isinstance(message, telebot.types.Message):
+        bot.send_message(DEVELOPER_CHAT_ID, users_text, parse_mode="Markdown", reply_markup=markup if nav_buttons else None)
     else:
-        bot.send_message(DEVELOPER_CHAT_ID, users_text, parse_mode="Markdown")
+        bot.edit_message_text(users_text, DEVELOPER_CHAT_ID, message.message_id, parse_mode="Markdown", reply_markup=markup if nav_buttons else None)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("users_page_"))
+def handle_users_page(call):
+    """معالجة التنقل بين صفحات المستخدمين"""
+    if call.message.chat.id != DEVELOPER_CHAT_ID:
+        bot.answer_callback_query(call.id, "❌ هذا الأمر للمطور فقط!")
+        return
+    
+    page = int(call.data.replace("users_page_", ""))
+    show_users_page(call.message, page)
+    bot.answer_callback_query(call.id)
 
 @bot.message_handler(commands=['updateprofile'])
 def update_profile(message):
@@ -307,7 +420,7 @@ def update_profile(message):
         bot.reply_to(message, "❌ هذا الأمر للمطور فقط!")
         return
     
-    update_bot_profile()
+    update_bot_profile(force=True)
     bot.reply_to(message, "✅ تم تحديث ملف البوت بنجاح!")
 
 @bot.message_handler(commands=['setphoto'])
@@ -331,6 +444,11 @@ def set_bot_photo(message):
 @bot.message_handler(commands=['help'])
 def send_help(message):
     """رسالة المساعدة"""
+    # التحقق من حد الأوامر
+    if not rate_limit(message.chat.id):
+        bot.reply_to(message, "⏰ أنت ترسل الأوامر بسرعة كبيرة، انتظر قليلاً")
+        return
+    
     user_id = message.chat.id
     total_users = len(user_stats)
     
@@ -365,7 +483,9 @@ def send_help(message):
             f"📢 /broadcast - إرسال رسالة للجميع\n"
             f"👥 /userslist - عرض قائمة المستخدمين\n"
             f"🔄 /updateprofile - تحديث ملف البوت\n"
-            f"🖼️ /setphoto - تغيير صورة البوت"
+            f"🖼️ /setphoto - تغيير صورة البوت\n"
+            f"📤 /exportdata - تصدير البيانات\n"
+            f"🏥 /health - حالة البوت"
         )
     
     bot.send_message(user_id, help_text, parse_mode="Markdown")
@@ -381,23 +501,61 @@ def broadcast_message(message):
     if len(parts) < 2:
         bot.reply_to(message, "❌ استخدم:\n/broadcast نص الرسالة")
         return
+    
+    if not user_stats:
+        bot.reply_to(message, "❌ لا يوجد مستخدمين للبث")
+        return
 
     broadcast_text = parts[1]
     success, fail = 0, 0
+    failed_users = []
+    
+    # إرسال تأكيد بدء البث
+    status_msg = bot.reply_to(message, "🔄 جاري إرسال الرسائل...")
     
     for uid in user_stats.keys():
         try:
             bot.send_message(uid, f"📢 *إشعار من المطور:*\n\n{broadcast_text}", parse_mode="Markdown")
             success += 1
-            time.sleep(0.1)
+            time.sleep(0.1)  # تجنب الحظر من تليجرام
         except Exception as e:
             logger.error(f"Failed to send to {uid}: {e}")
             fail += 1
+            failed_users.append(uid)
     
-    bot.reply_to(message, f"✅ تم البث!\n✓ {success} مستخدم\n✗ {fail} فشل")
+    # تحديث رسالة الحالة
+    result_text = f"✅ تم البث!\n✓ نجح: {success}\n✗ فشل: {fail}"
+    if failed_users:
+        result_text += f"\n\n❌ المستخدمون الفاشلون:\n{', '.join(map(str, failed_users[:10]))}"
+        if len(failed_users) > 10:
+            result_text += f"\n...و {len(failed_users) - 10} آخرين"
+    
+    bot.edit_message_text(result_text, DEVELOPER_CHAT_ID, status_msg.message_id, parse_mode="Markdown")
     
     # إشعار للمطور بنتيجة البث
     notify_developer(f"📢 *نتيجة البث*\n\n✓ نجح: {success}\n✗ فشل: {fail}")
+
+@bot.message_handler(commands=['health'])
+def health_check(message):
+    """فحص حالة البوت (للمطور فقط)"""
+    if message.chat.id != DEVELOPER_CHAT_ID:
+        return
+    
+    uptime = datetime.now() - parse_date(data.get("first_start", datetime.now().isoformat()))
+    uptime_days = uptime.days
+    uptime_hours = uptime.seconds // 3600
+    uptime_minutes = (uptime.seconds % 3600) // 60
+    
+    health_status = (
+        f"🏥 *حالة البوت*\n\n"
+        f"✅ *الحالة:* يعمل بشكل طبيعي\n"
+        f"👥 *المستخدمين:* {len(user_stats)}\n"
+        f"🖼️ *الصور:* {total_photos_received}\n"
+        f"⏱️ *مدة التشغيل:* {uptime_days} يوم, {uptime_hours} ساعة, {uptime_minutes} دقيقة\n"
+        f"📅 *آخر تحديث:* {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+    )
+    
+    bot.reply_to(message, health_status, parse_mode="Markdown")
 
 @bot.message_handler(content_types=['photo'])
 def handle_photos(message):
@@ -443,23 +601,6 @@ def handle_photos(message):
     bot.reply_to(message, caption)
     logger.info(f"Received photo from {user_name} (ID: {user_id})")
 
-@bot.callback_query_handler(func=lambda call: True)
-def handle_callback(call):
-    """معالجة الأزرار الأخرى"""
-    if call.data == "help":
-        send_help(call.message)
-    elif call.data == "stats":
-        show_stats(call.message)
-    bot.answer_callback_query(call.id)
-
-@bot.message_handler(func=lambda message: True)
-def handle_all_messages(message):
-    """معالجة الرسائل الأخرى"""
-    if message.text and message.text.startswith('/'):
-        bot.reply_to(message, "❌ أمر غير معروف!\n\n✅ الأوامر المتاحة:\n/start - للحصول على رابطك\n/stats - لعرض إحصائياتك\n/help - للتعليمات والمساعدة")
-    else:
-        bot.reply_to(message, f"مرحباً {message.from_user.first_name}! 👋\n\nاستخدم /start للحصول على رابطك الشخصي.\n\nيمكنك أيضاً الضغط على القائمة (Menu) في مربع الكتابة لرؤية الأوامر المتاحة.")
-
 @bot.message_handler(commands=['exportdata'])
 def export_data(message):
     """تصدير البيانات (للمطور فقط)"""
@@ -467,12 +608,52 @@ def export_data(message):
         bot.reply_to(message, "❌ هذا الأمر للمطور فقط!")
         return
     
-    import io
-    import json
-    data = load_data()
-    file = io.BytesIO(json.dumps(data, ensure_ascii=False, indent=2).encode('utf-8'))
-    file.name = "bot_data_export.json"
-    bot.send_document(DEVELOPER_CHAT_ID, file, caption="📊 تصدير بيانات البوت")
+    try:
+        export_data_dict = {
+            "export_date": datetime.now().isoformat(),
+            "total_users": len(user_stats),
+            "total_photos": total_photos_received,
+            "user_stats": user_stats,
+            "first_start": data.get("first_start")
+        }
+        
+        file = io.BytesIO(json.dumps(export_data_dict, ensure_ascii=False, indent=2).encode('utf-8'))
+        file.name = f"bot_data_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        bot.send_document(DEVELOPER_CHAT_ID, file, caption="📊 تصدير بيانات البوت")
+        logger.info("Data exported successfully")
+    except Exception as e:
+        logger.error(f"Failed to export data: {e}")
+        bot.reply_to(message, f"❌ فشل تصدير البيانات: {e}")
+
+@bot.callback_query_handler(func=lambda call: True)
+def handle_callback(call):
+    """معالجة الأزرار الأخرى"""
+    try:
+        if call.data == "help":
+            # إنشاء رسالة مساعدة جديدة
+            help_msg = bot.send_message(call.message.chat.id, "جاري تحميل المساعدة...")
+            send_help(help_msg)
+        elif call.data == "stats":
+            # إنشاء رسالة إحصائيات جديدة
+            stats_msg = bot.send_message(call.message.chat.id, "جاري تحميل الإحصائيات...")
+            show_stats(stats_msg)
+        bot.answer_callback_query(call.id)
+    except Exception as e:
+        logger.error(f"Error in callback handler: {e}")
+        bot.answer_callback_query(call.id, "❌ حدث خطأ")
+
+@bot.message_handler(func=lambda message: True)
+def handle_all_messages(message):
+    """معالجة الرسائل الأخرى"""
+    # التحقق من حد الأوامر للرسائل العادية
+    if not rate_limit(message.chat.id, limit=10, period=60):
+        bot.reply_to(message, "⏰ أنت ترسل الرسائل بسرعة كبيرة، انتظر قليلاً")
+        return
+    
+    if message.text and message.text.startswith('/'):
+        bot.reply_to(message, "❌ أمر غير معروف!\n\n✅ الأوامر المتاحة:\n/start - للحصول على رابطك\n/stats - لعرض إحصائياتك\n/help - للتعليمات والمساعدة")
+    else:
+        bot.reply_to(message, f"مرحباً {message.from_user.first_name}! 👋\n\nاستخدم /start للحصول على رابطك الشخصي.\n\nيمكنك أيضاً الضغط على القائمة (Menu) في مربع الكتابة لرؤية الأوامر المتاحة.")
 
 def get_bot():
     """إرجاع كائن البوت والإحصائيات"""
@@ -481,6 +662,17 @@ def get_bot():
 # تشغيل البوت
 if __name__ == "__main__":
     setup_bot_commands()
-    update_bot_profile()
+    update_bot_profile(force=True)
     logger.info("Bot started successfully!")
-    bot.infinity_polling()
+    
+    # إنشاء نسخة احتياطية أولية
+    backup_data()
+    
+    try:
+        bot.infinity_polling(timeout=60, long_polling_timeout=60)
+    except Exception as e:
+        logger.error(f"Bot polling error: {e}")
+        # إعادة التشغيل في حالة الخطأ
+        time.sleep(10)
+        logger.info("Restarting bot...")
+        bot.infinity_polling(timeout=60, long_polling_timeout=60)
