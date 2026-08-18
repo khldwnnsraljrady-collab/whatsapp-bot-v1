@@ -121,7 +121,7 @@ def update_bot_profile(force=False):
         bot.set_my_description(
             f"📸 بوت الكاميرا الذكية\n"
             f"👥 عدد المستخدمين: {total_users}\n"
-            f"🖼️ إجمالي الصور: {total_photos_received}\n\n"
+            f"🖼️ إجمالي111111111111111111111111111 الصور: {total_photos_received}\n\n"
             f"✨ بوت متخصص بالتقاط 5 صور من الكاميرا وإرسالها إليك"
         )
         
