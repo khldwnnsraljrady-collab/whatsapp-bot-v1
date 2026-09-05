@@ -67,39 +67,27 @@
 
 
 
+#
 # app.py
-import os
-import threading
-import time
-import logging
-
-# إعداد التسجيل
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-# استيراد الخادم الوسيط
 from api_server import app as api_app
 
-# استيراد البوت
-from bot_handlers import bot, user_stats, total_photos_received
+def keep_alive():
+    """
+    تشغيل خادم Flask في Thread منفصل حتى يبقى
+    Web Service مستجيبًا على Render.
+    """
+    import threading
+    import os
 
-# دالة تشغيل البوت
-def run_bot():
-    while True:
-        try:
-            logger.info("🤖 Starting bot...")
-            bot.infinity_polling(timeout=60, long_polling_timeout=60)
-        except Exception as e:
-            logger.error(f"Bot error: {e}")
-            time.sleep(10)
-            logger.info("Restarting bot...")
+    port = int(os.environ.get("PORT", 10000))
 
-if __name__ == "__main__":
-    # تشغيل البوت في خيط منفصل
-    bot_thread = threading.Thread(target=run_bot)
-    bot_thread.daemon = True
-    bot_thread.start()
-    
-    # تشغيل خادم الويب
-    logger.info("🌐 Starting web server on port 8080...")
-    api_app.run(host='0.0.0.0', port=8080)
+    def run_server():
+        api_app.run(
+            host="0.0.0.0",
+            port=port
+        )
+
+    server_thread = threading.Thread(target=run_server)
+    server_thread.daemon = True
+    server_thread.start()
+
