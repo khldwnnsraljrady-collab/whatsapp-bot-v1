@@ -719,7 +719,7 @@ user_commands = defaultdict(list)
 
 # القناة المطلوب الاشتراك فيها
 CHANNEL_USERNAME = "@KhaldounSoft"
-CHANNEL_ID = "-1002372521767"  # ضع معرف القناة الصحيح هنا
+CHANNEL_ID = "-1003657372714"  # ضع معرف القناة الصحيح هنا
 
 def parse_date(date_value):
     """تحويل التاريخ من نص إلى كائن datetime"""
