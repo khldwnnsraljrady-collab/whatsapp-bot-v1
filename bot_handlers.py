@@ -717,9 +717,9 @@ last_profile_update = {'last_update': 0}
 # تخزين أوامر المستخدمين للحد من السرعة
 user_commands = defaultdict(list)
 
-# القناة المطلوب الاشتراك فيها
+# ✅ القناة المطلوب الاشتراك فيها
+CHANNEL_ID = "-1003657372714"
 CHANNEL_USERNAME = "@KhaldounSoft"
-CHANNEL_ID = "-1003657372714"  # ضع معرف القناة الصحيح هنا
 
 def parse_date(date_value):
     """تحويل التاريخ من نص إلى كائن datetime"""
